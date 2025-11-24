@@ -4,24 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Horarios - Dashboard</title>
-    <link rel="stylesheet" href="css/style.css">
+    
+    <link rel="stylesheet" href="css/views/base.css">
+    <link rel="stylesheet" href="css/views/layout.css">
+    <link rel="stylesheet" href="css/views/horario.css"> 
+    <link rel="stylesheet" href="css/views/crud.css"> 
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
     </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navItems = document.querySelectorAll('.nav-item[data-view]');
+            const appContent = document.getElementById('app-content');
+            const viewTitle = document.getElementById('view-title');
+
+            const loadView = (viewName) => {
+                // Ocultar todas las vistas
+                document.querySelectorAll('.view-content').forEach(v => v.style.display = 'none');
+                
+                // Mostrar la vista seleccionada
+                const selectedView = document.getElementById(viewName);
+                if (selectedView) {
+                    selectedView.style.display = 'block';
+                    viewTitle.textContent = selectedView.getAttribute('data-title');
+                }
+
+                // Actualizar clase activa del menú
+                navItems.forEach(item => item.classList.remove('nav-active'));
+                document.querySelector(`.nav-item[data-view="${viewName}"]`).classList.add('nav-active');
+            };
+
+            navItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    loadView(e.target.dataset.view);
+                });
+            });
+
+            // Cargar la vista de Horario al inicio
+            loadView('view-horario');
+        });
+    </script>
 </head>
 <body>
     <div class="dashboard-layout">
         
         <aside class="sidebar bg-dark-blue">
             <div class="logo-area">
-                <span class="logo-text">MINDBOX 2</span>
+                <span class="logo-text">SCHEDULER</span>
             </div>
             <nav class="nav-menu">
-                <a href="#" class="nav-item nav-active">Horario General</a>
-                <a href="#" class="nav-item">Gestión de Materias</a>
-                <a href="#" class="nav-item">Gestión de Docentes</a>
-                <a href="#" class="nav-item">Gestión de Aulas</a>
-                <a href="#" class="nav-item">Gestión de Grupos</a>
+                <a href="#" class="nav-item nav-active" data-view="view-horario">Horario General</a>
+                <a href="#" class="nav-item" data-view="view-materias">Gestión de Materias</a>
+                <a href="#" class="nav-item" data-view="view-docentes">Gestión de Docentes</a>
+                <a href="#" class="nav-item" data-view="view-aulas">Gestión de Aulas</a>
+                <a href="#" class="nav-item" data-view="view-grupos">Gestión de Grupos</a>
 
                 <hr class="nav-separator">
                 
@@ -34,17 +73,191 @@
 
         <main class="content-area">
             <header class="content-header">
-                <h1 class="header-title" id="view-title">Vista de Horario General</h1>
+                <h1 class="header-title" id="view-title">Vista de Horario</h1>
             </header>
             
             <section id="app-content" class="card p-30">
-                <h2 class="section-title">Visualización de la Parrilla de Horarios</h2>
                 
-                <div class="mock-controls">
-                    <button class="btn btn-secondary">Filtrar por Docente</button>
-                    <button class="btn btn-secondary">Filtrar por Aula</button>
-                    <button class="btn btn-primary">Crear Nuevo Horario</button>
+                <div id="view-horario" class="view-content" data-title="Vista de Horario (Parrilla L-V)">
+                    <h2 class="section-title">Visualización de la Parrilla de Horarios</h2>
+
+                    <div class="filter-controls">
+                        <select class="control-select"><option>Filtrar por Docente...</option></select>
+                        <select class="control-select"><option>Filtrar por Aula...</option></select>
+                        <select class="control-select"><option>Filtrar por Materia...</option></select>
+                        <button class="btn btn-secondary">Aplicar Filtros</button>
+                    </div>
+
+                    <div class="horario-grid-container card">
+                        <table class="horario-table">
+                            <thead>
+                                <tr>
+                                    <th class="time-header">Hora</th>
+                                    <th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="time-slot">7:00 - 8:00</td>
+                                    <td class="class-slot class-active">
+                                        <span class="materia">Cálculo Diferencial</span>
+                                        <span class="details">Aula: 101 / Prof: J. Pérez</span>
+                                    </td>
+                                    <td class="class-slot"></td>
+                                    <td class="class-slot class-active">
+                                        <span class="materia">Programación Web</span>
+                                        <span class="details">Aula: 205 / Prof: M. López</span>
+                                    </td>
+                                    <td class="class-slot"></td>
+                                    <td class="class-slot"></td>
+                                </tr>
+                                <tr>
+                                    <td class="time-slot">14:00 - 15:00</td>
+                                    <td class="class-slot"></td>
+                                    <td class="class-slot"></td>
+                                    <td class="class-slot"></td>
+                                    <td class="class-slot"></td>
+                                    <td class="class-slot"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+                
+                <div id="view-materias" class="view-content" data-title="Gestión de Materias (CRUD)" style="display: none;">
+                    <h2 class="section-title">Gestión de Materias</h2>
+
+                    <div class="crud-layout">
+                        <div class="form-container card p-30">
+                            <h3 class="form-title">Crear/Editar Materia</h3>
+                            <form class="materia-form">
+                                <div class="form-group"><label>Nombre de la Materia:</label><input type="text" required></div>
+                                <div class="form-group"><label>Horas Semanales:</label><input type="number" min="1" max="10" required></div>
+                                <div class="form-group"><label>Créditos Totales:</label><input type="number" min="1" required></div>
+                                <button type="submit" class="btn btn-primary btn-block">Guardar Materia</button>
+                            </form>
+                        </div>
+
+                        <div class="table-container">
+                            <h3 class="table-title">Listado de Materias</h3>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead><tr><th>ID</th><th>Nombre</th><th>Horas Semanales</th><th>Créditos</th><th>Acciones</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>101</td><td>Cálculo Diferencial</td><td>5</td><td>10</td><td><button class="btn btn-info btn-sm">Editar</button><button class="btn btn-danger btn-sm">Eliminar</button></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-docentes" class="view-content" data-title="Gestión de Docentes (CRUD)" style="display: none;">
+                    <h2 class="section-title">Gestión de Docentes</h2>
+
+                    <div class="crud-layout">
+                        <div class="form-container card p-30">
+                            <h3 class="form-title">Agregar Nuevo Docente</h3>
+                            <form class="docente-form">
+                                <div class="form-group"><label>Nombre Completo:</label><input type="text" required></div>
+                                <div class="form-group"><label>Matrícula/ID:</label><input type="text" required></div>
+                                <div class="form-group">
+                                    <label>Carga Horaria Semanal:</label>
+                                    <select required>
+                                        <option value="">Seleccione Carga...</option>
+                                        <option value="8-18">8 - 18 horas</option>
+                                        <option value="20-22">20 - 22 horas</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-block">Registrar Docente</button>
+                            </form>
+                        </div>
+
+                        <div class="table-container">
+                            <h3 class="table-title">Listado de Docentes</h3>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead><tr><th>ID</th><th>Nombre</th><th>Carga Semanal</th><th>Materias Asignadas</th><th>Acciones</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>D-001</td><td>Javier González</td><td>8 - 18 hrs</td><td>Cálculo, Física</td><td><button class="btn btn-info btn-sm">Editar</button><button class="btn btn-danger btn-sm">Eliminar</button></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-aulas" class="view-content" data-title="Gestión de Aulas (CRUD)" style="display: none;">
+                    <h2 class="section-title">Gestión de Aulas</h2>
+
+                    <div class="crud-layout">
+                        <div class="form-container card p-30">
+                            <h3 class="form-title">Registrar Nueva Aula</h3>
+                            <form class="aula-form">
+                                <div class="form-group"><label>Nombre/Número de Aula:</label><input type="text" placeholder="Ej: Aula 205" required></div>
+                                <div class="form-group"><label>Capacidad Máxima:</label><input type="number" min="1" required></div>
+                                <div class="form-group">
+                                    <label>Tipo de Aula:</label>
+                                    <select required>
+                                        <option value="">Seleccione Tipo...</option>
+                                        <option value="teorico">Teórico</option>
+                                        <option value="laboratorio">Laboratorio</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-block">Guardar Aula</button>
+                            </form>
+                        </div>
+
+                        <div class="table-container">
+                            <h3 class="table-title">Listado de Aulas (Total: 20)</h3>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead><tr><th>ID</th><th>Nombre</th><th>Capacidad</th><th>Tipo</th><th>Acciones</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>A-01</td><td>Aula 101</td><td>30</td><td>Teórico</td><td><button class="btn btn-info btn-sm">Editar</button><button class="btn btn-danger btn-sm">Eliminar</button></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-grupos" class="view-content" data-title="Gestión de Grupos y Alumnos" style="display: none;">
+                    <h2 class="section-title">Gestión de Grupos y Alumnos</h2>
+
+                    <div class="crud-layout">
+                        <div class="form-container card p-30">
+                            <h3 class="form-title">Crear Nuevo Grupo</h3>
+                            <form class="grupo-form">
+                                <div class="form-group"><label>Nombre del Grupo:</label><input type="text" placeholder="Ej: 1er Semestre A" required></div>
+                                <div class="form-group"><label>Número de Alumnos Inicial:</label><input type="number" min="1" placeholder="Ej: 25" required></div>
+                                <button type="submit" class="btn btn-primary btn-block">Procesar y Crear Grupo</button>
+                            </form>
+                            <hr class="nav-separator">
+                            <h3 class="form-title">Añadir Alumno Ficticio</h3>
+                             <form class="alumno-form">
+                                <div class="form-group"><label>Nombre:</label><input type="text" required></div>
+                                <div class="form-group"><label>Matrícula:</label><input type="text" required></div>
+                                <div class="form-group"><label>Correo:</label><input type="email" required></div>
+                                <button type="submit" class="btn btn-secondary btn-block">Guardar Alumno</button>
+                            </form>
+                        </div>
+
+                        <div class="table-container">
+                            <h3 class="table-title">Grupos Existentes</h3>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead><tr><th>Grupo</th><th>Total Alumnos</th><th>Regla</th><th>Acciones</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>1ro A</td><td>25</td><td>OK (7-30)</td><td><button class="btn btn-info btn-sm">Ver Alumnos</button><button class="btn btn-danger btn-sm">Eliminar</button></td></tr>
+                                        <tr><td>2do B</td><td>40</td><td style="color:#E74C3C; font-weight:700;">DIVIDIR</td><td><button class="btn btn-info btn-sm">Dividir (2x20)</button><button class="btn btn-secondary btn-sm">Ver Alumnos</button></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
             </section>
         </main>
     </div>

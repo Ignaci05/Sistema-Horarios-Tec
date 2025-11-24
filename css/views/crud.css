@@ -1,0 +1,90 @@
+/* --- ESTILOS DE LAYOUT FLEXIBLE (CRUD) --- */
+
+.crud-layout {
+    display: flex;
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.form-container {
+    width: 350px; 
+    min-width: 300px;
+    flex-shrink: 0;
+    align-self: flex-start;
+}
+
+.table-container {
+    flex-grow: 1;
+}
+
+/* Títulos dentro de la vista CRUD */
+.form-title, .table-title {
+    color: var(--primary-dark);
+    font-size: 1.4em;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+/* Ajustes de formulario */
+.btn-block {
+    width: 100%;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+/* --- ESTILOS DE LA TABLA DE DATOS --- */
+
+.table-responsive {
+    overflow-x: auto;
+    box-shadow: var(--shadow-light);
+    border-radius: 10px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95em;
+    background-color: var(--container-bg);
+}
+
+.data-table th, .data-table td {
+    padding: 15px; /* Mayor padding para mejor lectura */
+    text-align: left;
+    border-bottom: 1px solid #ECEFF1;
+}
+
+.data-table th {
+    background-color: #F8F9FA;
+    color: var(--text-dark);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.data-table tbody tr:hover {
+    background-color: #F5F7F8;
+}
+
+/* Botones de acción en tablas */
+.btn-sm {
+    padding: 6px 10px;
+    font-size: 0.85em;
+    margin-right: 5px;
+    font-weight: 500;
+}
+
+/* Media Query: Hacerlo responsive */
+@media (max-width: 800px) {
+    .crud-layout {
+        flex-direction: column;
+    }
+    .form-container {
+        width: 100%;
+        max-width: none;
+        order: 2; /* Mueve el formulario debajo de la tabla en móvil */
+    }
+    .table-container {
+        order: 1;
+    }
+}

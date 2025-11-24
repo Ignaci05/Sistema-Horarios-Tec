@@ -1,0 +1,140 @@
+/* --- LAYOUT DEL DASHBOARD --- */
+
+.dashboard-layout { 
+    display: flex; 
+    min-height: 100vh; 
+    /* El layout ahora usa un ligero color de fondo para distinguirse del contenido */
+    background-color: var(--background-light);
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px; /* Un poco más ancho para mejor legibilidad */
+    min-width: 280px;
+    background-color: var(--primary-dark);
+    color: white;
+    padding: 20px 0;
+    box-shadow: 3px 0 10px rgba(0, 0, 0, 0.3); /* Sombra más fuerte para profundidad */
+    position: sticky; /* Fija la barra lateral */
+    top: 0;
+}
+
+.logo-area {
+    padding: 0 30px 40px 30px; /* Mayor padding */
+    text-align: left;
+}
+
+.logo-text {
+    font-size: 1.6em;
+    font-weight: 700;
+    letter-spacing: 2px; /* Mayor espaciado */
+    color: var(--secondary-blue);
+}
+
+/* Navegación */
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-item {
+    display: block;
+    padding: 12px 30px; /* Ajuste del padding */
+    color: rgba(255, 255, 255, 0.75); /* Más suave */
+    text-decoration: none;
+    transition: background-color 0.2s, color 0.2s;
+    font-weight: 500;
+    font-size: 1em;
+}
+
+.nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.1); /* Hover más sutil */
+    color: white;
+}
+
+.nav-active {
+    background-color: rgba(255, 255, 255, 0.15); /* Resaltado activo */
+    color: white;
+    border-left: 5px solid var(--secondary-blue);
+    padding-left: 25px; /* Ajuste para compensar el borde */
+}
+
+.nav-separator {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    margin: 20px 30px;
+}
+
+/* Info de Usuario y Logout */
+.user-info {
+    padding: 10px 30px;
+    margin-top: 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-role {
+    display: block;
+    color: #BDC3C7;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+}
+
+.logout-link {
+    color: #BDC3C7;
+    padding: 5px 0;
+}
+
+.logout-link:hover {
+    background-color: transparent;
+    color: var(--secondary-blue);
+}
+
+
+/* Main Content Area */
+.content-area {
+    flex-grow: 1;
+    padding: 30px;
+}
+
+.content-header {
+    margin-bottom: 30px;
+}
+
+.header-title {
+    color: var(--text-dark);
+    font-size: 2.2em; /* Título más grande y elegante */
+    font-weight: 300; /* Fuente delgada para el título */
+    border-bottom: 1px solid #DCE4E8;
+    padding-bottom: 15px;
+}
+
+/* Media Query para responsividad básica */
+@media (max-width: 900px) {
+    .dashboard-layout {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        min-width: unset;
+        height: auto;
+        position: static;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    }
+    .nav-menu {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .nav-item {
+        padding: 10px 20px;
+        border-left: none !important;
+        padding-left: 20px !important;
+    }
+    .nav-active {
+        border-bottom: 3px solid var(--secondary-blue) !important;
+        border-left: none;
+    }
+    .logo-area, .user-info {
+        text-align: center;
+        padding: 10px 20px;
+    }
+}

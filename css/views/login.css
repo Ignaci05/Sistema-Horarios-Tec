@@ -1,0 +1,51 @@
+/* --- LAYOUT DEL LOGIN (index.html) --- */
+
+/* 1. Centrado Absoluto en el Cuerpo */
+.login-body {
+    display: flex;
+    /* Centrado Horizontal (eje principal) */
+    justify-content: center;
+    /* Centrado Vertical (eje cruzado) */
+    align-items: center;
+    /* Asegura que el cuerpo ocupe toda la altura visible */
+    min-height: 100vh;
+    /* Evita el scroll si el contenido es pequeño */
+    overflow: hidden; 
+}
+
+/* 2. Estilos de la Tarjeta de Login */
+.login-card {
+    padding: 40px;
+    width: 90%;
+    max-width: 450px;
+    text-align: center;
+    /* Añadimos un poco de margen superior/inferior para el modo móvil
+       o si la ventana es muy pequeña y activa el scroll */
+    margin: 20px 0; 
+}
+
+/* 3. Ajustes de Formulario y Enlace */
+.login-form {
+    text-align: left;
+}
+
+.login-form .btn-primary {
+    margin-top: 15px; /* Espaciado con el botón */
+    width: 100%;
+}
+
+.role-hint {
+    margin-top: 25px;
+    font-size: 0.9em;
+}
+
+/* El estilo de .text-secondary debe estar en base.css,
+   pero lo incluimos aquí como recordatorio visual */
+.text-secondary {
+    color: var(--secondary-blue);
+    text-decoration: none;
+}
+
+.text-secondary:hover {
+    text-decoration: underline;
+}
