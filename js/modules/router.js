@@ -1,5 +1,6 @@
 // js/modules/router.js
 import { loadMateriasView } from '../views/materiasView.js';
+import { loadDocentesView } from '../views/docentesView.js';
 // Mapeo de vistas a sus requerimientos de rol (RF 1)
 const VIEWS_MAP = {
     'view-horario': {
@@ -16,7 +17,8 @@ const VIEWS_MAP = {
     'view-docentes': {
         name: 'Gestión de Docentes',
         roles: ['subdirector', 'jefe'], // Jefe de Departamento debe poder agregar docentes [cite: 19]
-        icon: '👨‍🏫'
+        icon: '👨‍🏫',
+        loadFunction: loadDocentesView
     },
     'view-aulas': {
         name: 'Gestión de Aulas',

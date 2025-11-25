@@ -50,7 +50,7 @@ export const authenticate = async (matricula, password) => {
             
             // 3. Éxito: Devolver el rol dinámicamente.
             // Si el campo 'role' existe, lo usa; de lo contrario, asume 'docente' como fallback.
-            const userRole = userData.role || 'docente'; 
+            const userRole = userData.rol || 'docente'; 
 
             return {
                 role: userRole,
