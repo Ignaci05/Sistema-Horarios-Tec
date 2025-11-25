@@ -56,7 +56,7 @@ const renderDocentesTable = async () => {
 };
 
 /**
- * Rellena el formulario con datos para edición o lo limpia.
+ * Rellena el formulario con datos para edición.
  */
 const fillForm = (docente = null) => {
     const form = document.getElementById('docente-form');
@@ -64,17 +64,25 @@ const fillForm = (docente = null) => {
 
     currentDocenteId = docente ? docente.id : null;
     
-    // Control de visibilidad del campo Contraseña
-    const passwordGroup = document.getElementById('password-group');
     const passwordInput = document.getElementById('docente-password');
+    const passwordLabel = document.querySelector('label[for="docente-password"]');
     
     if (docente) {
-        passwordGroup.style.display = 'none';
-        passwordInput.removeAttribute('required'); // No requerido en edición
+        // MODO EDICIÓN: Campo visible pero opcional
+        passwordInput.removeAttribute('required');
+        passwordInput.value = ''; // Limpiar para no mostrar la contraseña real (seguridad)
+        passwordInput.placeholder = "Dejar vacío para mantener la actual";
+        passwordLabel.textContent = "Contraseña (Opcional al editar):";
     } else {
-        passwordGroup.style.display = 'block';
-        passwordInput.setAttribute('required', 'required'); // Requerido al crear
+        // MODO CREACIÓN: Campo obligatorio
+        passwordInput.setAttribute('required', 'required');
+        passwordInput.value = '';
+        passwordInput.placeholder = "";
+        passwordLabel.textContent = "Contraseña:";
     }
+
+    // Mostrar siempre el grupo de contraseña (quitamos el style.display = 'none')
+    document.getElementById('password-group').style.display = 'block';
 
     document.getElementById('docente-nombre').value = docente?.nombre || '';
     document.getElementById('docente-matricula').value = docente?.matricula || '';
@@ -89,11 +97,10 @@ const fillForm = (docente = null) => {
  */
 const setupFormListeners = () => {
     const form = document.getElementById('docente-form');
-    const clearBtn = document.getElementById('clear-form-btn'); // ⬅️ Nuevo ID para el botón Limpiar
+    const clearBtn = document.getElementById('clear-form-btn');
 
     if (!form || !clearBtn) return;
 
-    // 1. Listener para el SUBMIT (Crear/Editar)
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -103,7 +110,7 @@ const setupFormListeners = () => {
             matricula: document.getElementById('docente-matricula').value.trim(),
             cargaHoraria: document.getElementById('carga-horaria').value,
             role: document.getElementById('docente-role').value,
-            // Solo toma el valor de la contraseña si existe (en modo Crear)
+            // Enviamos lo que haya en el input (vacío o nueva pass)
             password: document.getElementById('docente-password')?.value || '' 
         };
 
@@ -111,26 +118,25 @@ const setupFormListeners = () => {
             await saveDocente(docente);
             alert(`Docente ${docente.id ? 'actualizado' : 'registrado'} con éxito.`);
             
-            // Lógica de recarga de sesión si el rol del usuario logueado cambia
+            // Recarga si cambia el rol propio (lógica existente)
             const currentUserID = localStorage.getItem('userUID');
             if (docente.id === currentUserID && docente.role !== localStorage.getItem('userRole')) {
                 alert("Su rol ha sido modificado. Se recargará el dashboard.");
                 localStorage.setItem('userRole', docente.role); 
-                window.location.reload(); // Recarga completa para que el router se reinicie
+                window.location.reload(); 
                 return;
             }
             
-            fillForm(null); // Limpiar formulario y estado de edición
+            fillForm(null); 
             renderDocentesTable(); 
         } catch (error) {
             alert("Error: " + error.message);
         }
     });
     
-    // 2. Listener para el botón LIMPIAR/CANCELAR (Soluciona ReferenceError)
     clearBtn.addEventListener('click', () => {
-        form.reset(); // Limpiar campos
-        fillForm(null); // Restablecer el estado (currentDocenteId = null, mostrar campo password)
+        form.reset();
+        fillForm(null);
     });
 };
 

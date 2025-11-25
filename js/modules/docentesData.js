@@ -31,28 +31,34 @@ export const getDocentes = async () => {
  * @returns {Promise<Object>} El docente guardado con su ID.
  */
 export const saveDocente = async (docente) => {
-    // ⚠️ Nota: La contraseña no debe estar vacía y debe tener el rol.
-    if (!docente.password) {
-        throw new Error("La contraseña es requerida para el registro.");
+    // Validación 1: Al CREAR (sin ID), la contraseña es obligatoria.
+    if (!docente.id && !docente.password) {
+        throw new Error("La contraseña es requerida para el registro nuevo.");
     }
     
     const dataToSave = {
         nombre: docente.nombre,
-        matricula: docente.matricula.toUpperCase(), // Estandarizar la matrícula
+        matricula: docente.matricula.toUpperCase(),
         cargaHoraria: docente.cargaHoraria,
-        // Al crearse, todos son docentes por defecto. El Subdirector debe cambiar el rol si es necesario.
         role: docente.role || 'docente', 
-        password: docente.password, // Solo para simulación de autenticación (no segura)
         updatedAt: new Date().toISOString()
     };
+
+    // Lógica de Contraseña:
+    // Solo la agregamos al objeto a guardar si NO está vacía.
+    if (docente.password && docente.password.trim() !== "") {
+        dataToSave.password = docente.password;
+    }
     
     try {
         if (docente.id) {
-            // Actualizar (EDITAR)
+            // ACTUALIZAR (EDITAR)
+            // Firestore .update(dataToSave) solo actualizará los campos presentes en dataToSave.
+            // Si dataToSave.password no existe (porque venía vacía), la password vieja se mantiene intacta en la BD.
             await db.collection(DOCENTES_COLLECTION).doc(docente.id).update(dataToSave);
             return { id: docente.id, ...dataToSave };
         } else {
-            // Crear (NUEVO)
+            // CREAR (NUEVO)
             dataToSave.createdAt = new Date().toISOString();
             const docRef = await db.collection(DOCENTES_COLLECTION).add(dataToSave);
             return { id: docRef.id, ...dataToSave };

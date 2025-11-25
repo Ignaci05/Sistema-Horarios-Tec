@@ -1,12 +1,16 @@
 // js/modules/router.js
 import { loadMateriasView } from '../views/materiasView.js';
 import { loadDocentesView } from '../views/docentesView.js';
+import { loadGruposView } from '../views/gruposViews.js';
+import { loadAulasView } from '../views/aulasView.js';
+import { loadHorarioGridView } from '../views/horarioGridView.js';
 // Mapeo de vistas a sus requerimientos de rol (RF 1)
 const VIEWS_MAP = {
     'view-horario': {
         name: 'Horario General',
         roles: ['subdirector', 'jefe', 'docente'], // Todos deben ver el horario asignado [cite: 24]
-        icon: '📊'
+        icon: '📊',
+        loadFunction: loadHorarioGridView
     },
     'view-materias': {
         name: 'Gestión de Materias',
@@ -23,12 +27,14 @@ const VIEWS_MAP = {
     'view-aulas': {
         name: 'Gestión de Aulas',
         roles: ['subdirector', 'jefe'], // Jefe de Departamento debe poder ver y editar aulas [cite: 21]
-        icon: '🏛️'
+        icon: '🏛️',
+        loadFunction: loadAulasView
     },
     'view-grupos': {
         name: 'Gestión de Grupos',
         roles: ['subdirector'], // Rol de gestión total (Subdirector)
-        icon: '👥'
+        icon: '👥',
+        loadFunction: loadGruposView
     },
     'view-perfil-docente': {
         name: 'Mi Perfil/Horario',
