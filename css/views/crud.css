@@ -26,13 +26,8 @@
 }
 
 /* Ajustes de formulario */
-.btn-block {
-    width: 100%;
-}
-
-.mt-10 {
-    margin-top: 10px;
-}
+.btn-block { width: 100%; }
+.mt-10 { margin-top: 10px; }
 
 /* --- ESTILOS DE LA TABLA DE DATOS --- */
 
@@ -50,7 +45,7 @@
 }
 
 .data-table th, .data-table td {
-    padding: 15px; /* Mayor padding para mejor lectura */
+    padding: 15px; 
     text-align: left;
     border-bottom: 1px solid #ECEFF1;
 }
@@ -67,24 +62,11 @@
 }
 
 /* Botones de acción en tablas */
-.btn-sm {
-    padding: 6px 10px;
-    font-size: 0.85em;
-    margin-right: 5px;
-    font-weight: 500;
-}
+.btn-sm { padding: 6px 10px; font-size: 0.85em; margin-right: 5px; font-weight: 500; }
 
 /* Media Query: Hacerlo responsive */
 @media (max-width: 800px) {
-    .crud-layout {
-        flex-direction: column;
-    }
-    .form-container {
-        width: 100%;
-        max-width: none;
-        order: 2; /* Mueve el formulario debajo de la tabla en móvil */
-    }
-    .table-container {
-        order: 1;
-    }
+    .crud-layout { flex-direction: column; }
+    .form-container { width: 100%; max-width: none; order: 2; }
+    .table-container { order: 1; }
 }

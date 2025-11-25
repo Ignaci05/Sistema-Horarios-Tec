@@ -1,5 +1,5 @@
 // js/views/materiasView.js
-import { getMaterias, saveMateria, deleteMateria } from '../js/modules/materiasData.js';
+import { getMaterias, saveMateria, deleteMateria } from '../modules/materiasData.js';
 
 let currentMateriaId = null; // Variable para almacenar el ID de la materia en edición
 

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Horarios - Login</title>
     
-<link rel="stylesheet" href="css/views/base.css">
-    <link rel="stylesheet" href="css//views/login.css"> 
+    <link rel="stylesheet" href="css/views/base.css">
+    <link rel="stylesheet" href="css/views/login.css"> 
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
@@ -15,7 +15,7 @@
 <body class="login-body">
     <main class="login-card card">
         <h1 class="card-title text-primary">Sistema de Gestión de Horarios</h1>
-        <form class="login-form">
+        <form id="loginForm" class="login-form">
             <h2 class="card-subtitle">Iniciar Sesión</h2>
             
             <div class="form-group">
@@ -29,11 +29,26 @@
             </div>
             
             <button type="submit" class="btn btn-primary">Acceder</button>
-            
+
+            <!-- Contenedor para mostrar errores de login desde el controlador -->
+            <p id="errorMessage" class="error-message" style="display:none;color:#b00020;margin-top:8px;"></p>
+
+            <!-- Botón de depuración (solo en desarrollo) -->
+            <p style="margin-top:8px;">
+                <button id="debugBtn" class="btn btn-secondary" style="padding:6px 10px;font-size:0.9rem;">Comprobar matrícula (debug)</button>
+            </p>
+
             <p class="role-hint">
                 <a href="dashboard.html" class="text-secondary">Ir al Dashboard (Simulación)</a>
             </p>
         </form>
     </main>
+    <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore-compat.js"></script>
+    
+
+    <!-- Controlador de login (módulo ES) -->
+    <script type="module" src="js/login-controller.js"></script>
 </body>
 </html>

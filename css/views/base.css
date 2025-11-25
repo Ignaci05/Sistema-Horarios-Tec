@@ -1,17 +1,18 @@
 /* Paleta de Colores y Estilos Base */
 :root {
-    /* Tonos de Azul Oscuro (Primario) */
-    --primary-dark: #004D7A; 
-    --primary-hover: #003D61;
-    --primary-active-light: #E3F2FD; /* Fondo muy claro para selecciones */
-    --secondary-blue: #3498DB; /* Azul Brillante para acentos y bordes */
+    --primary-dark: #0A3D62; 
+    --primary-hover: #073150;
+    --primary-active-light: #E0F7FA;
+    --secondary-blue: #3498DB; 
 
-    /* Tonos Grises y Fondos */
-    --background-light: #ECF0F1; /* Fondo principal */
-    --container-bg: #FFFFFF; /* Blanco puro para tarjetas */
-    --text-dark: #2C3E50; /* Texto principal (Gris/Azul Oscuro) */
-    --text-muted: #7F8C8D; /* Texto secundario o pistas */
-    --shadow-light: 0 6px 15px rgba(0, 0, 0, 0.1); /* Sombra más pronunciada y moderna */
+    --background-light: #F4F6F9; 
+    --container-bg: #FFFFFF; 
+    --text-dark: #2C3E50; 
+    --text-muted: #7F8C8D; 
+    --shadow-light: 0 10px 30px rgba(0, 0, 0, 0.15); 
+
+    --transition-speed: 0.35s;
+    --border-radius-lg: 12px;
 }
 
 /* Reset y Tipografía */
@@ -26,118 +27,69 @@ body {
     background-color: var(--background-light);
     color: var(--text-dark);
     line-height: 1.6;
-    font-size: 16px; /* Asegura un tamaño de fuente base estándar */
+    font-size: 16px; 
 }
 
 h1, h2, h3 {
     color: var(--text-dark);
-    margin-bottom: 0.5em;
+    margin-bottom: 0.6em;
     font-weight: 700;
 }
 
 /* --- ESTILOS DE TARJETAS Y CONTENEDORES --- */
-
 .card {
     background-color: var(--container-bg);
-    border-radius: 10px; /* Bordes más suaves */
+    border-radius: var(--border-radius-lg); 
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    transition: all var(--transition-speed) ease;
+}
+.card:hover {
     box-shadow: var(--shadow-light);
-    transition: transform 0.3s ease;
 }
-.p-30 { 
-    padding: 30px; 
-}
+.p-30 { padding: 30px; }
 
 /* Títulos y Secciones */
 .card-title, .section-title, .form-title {
     color: var(--primary-dark);
     font-weight: 700;
 }
-
 .description-text {
     color: var(--text-muted);
     margin-bottom: 25px;
 }
 
 /* --- ESTILOS DE FORMULARIOS E INPUTS --- */
+.form-group { margin-bottom: 20px; }
+label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-dark); font-size: 0.9em; }
 
-.form-group { 
-    margin-bottom: 20px; 
-}
-
-label { 
-    display: block; 
-    margin-bottom: 8px; 
-    font-weight: 500; /* Ligeramente menos pesado */
-    color: var(--text-dark); 
-    font-size: 0.9em; 
-}
-
-input[type="text"], 
-input[type="password"], 
-input[type="number"], 
-select, 
-.control-select {
-    width: 100%; 
-    padding: 12px;
-    border: 1px solid #DCE4E8;
-    border-radius: 8px; /* Bordes más suaves */
-    transition: border-color 0.3s, box-shadow 0.3s; 
+input[type="text"], input[type="password"], input[type="number"], select, .control-select {
+    width: 100%; padding: 12px; border: 1px solid #DCE4E8; border-radius: 8px; 
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed); 
     background-color: white;
 }
-
 input:focus, select:focus { 
-    border-color: var(--secondary-blue); 
-    outline: none; 
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); /* Sombra de enfoque sutil */
+    border-color: var(--secondary-blue); outline: none; 
+    box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.35); 
 }
 
 /* --- ESTILOS DE BOTONES --- */
-
 .btn {
-    padding: 12px 20px;
-    border: none;
-    border-radius: 8px; 
-    cursor: pointer;
-    font-weight: 600; 
-    transition: background-color 0.3s, transform 0.1s;
+    padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer;
+    font-weight: 600; transition: background-color var(--transition-speed), transform 0.15s, box-shadow var(--transition-speed);
 }
+.btn-primary { background-color: var(--primary-dark); color: white; }
+.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3); }
 
-.btn-primary { 
-    background-color: var(--primary-dark); 
-    color: white; 
-}
-.btn-primary:hover { 
-    background-color: var(--primary-hover); 
-    transform: translateY(-1px); 
-}
+.btn-secondary { background-color: #BDC3C7; color: var(--text-dark); }
+.btn-secondary:hover { background-color: #AAB7B8; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); }
 
-.btn-secondary { 
-    background-color: #BDC3C7; /* Gris claro profesional */
-    color: var(--text-dark); 
-}
-.btn-secondary:hover { 
-    background-color: #AAB7B8;
-    transform: translateY(-1px);
-}
-
-/* Botones de acción en tablas (sm) */
-.btn-sm {
-    padding: 8px 12px;
-    font-size: 0.8em;
-    font-weight: 500;
-}
-
-.btn-info {
-    background-color: var(--secondary-blue);
-    color: white;
-}
-
-.btn-danger {
-    background-color: #E74C3C; /* Rojo estándar */
-    color: white;
-}
+.btn-sm { padding: 8px 12px; font-size: 0.8em; font-weight: 500; }
+.btn-info { background-color: var(--secondary-blue); color: white; }
+.btn-info:hover { background-color: #2980B9; transform: scale(1.05); }
+.btn-danger { background-color: #E74C3C; color: white; }
 
 /* Utilidades de texto */
 .text-primary { color: var(--primary-dark) !important; }
 .text-secondary { color: var(--secondary-blue) !important; text-decoration: none; }
 .text-secondary:hover { text-decoration: underline; }
+.nav-separator { border: 0; border-top: 1px solid rgba(255, 255, 255, 0.15); margin: 20px 30px; }

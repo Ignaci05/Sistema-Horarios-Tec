@@ -1,123 +1,26 @@
 /* --- ESTILOS ESPECÍFICOS DEL HORARIO --- */
-
-/* Controles de Filtro */
-.filter-controls {
-    display: flex;
-    gap: 15px; /* Mayor espacio entre filtros */
-    margin-bottom: 30px;
-    flex-wrap: wrap; 
-}
-
-.control-select {
-    /* Hereda estilos de input de base.css, solo aseguramos el ancho */
-    flex-grow: 1;
-    min-width: 180px;
-}
+.filter-controls { display: flex; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
+.control-select { flex-grow: 1; min-width: 180px; }
 
 /* Contenedor de la Parrilla */
-.horario-grid-container {
-    overflow-x: auto; 
-    box-shadow: var(--shadow-light);
-    border-radius: 10px; /* Consistente con las tarjetas */
-}
+.horario-grid-container { overflow-x: auto; box-shadow: var(--shadow-light); border-radius: 10px; }
+.horario-table { width: 100%; border-collapse: collapse; min-width: 900px; background-color: var(--container-bg); }
 
-.horario-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 900px; /* Asegura espacio suficiente para 5 días */
-    background-color: var(--container-bg);
-}
+.horario-table thead th { background-color: var(--primary-dark); color: white; padding: 15px 10px; font-weight: 500; text-align: center; border: 1px solid var(--primary-hover); font-size: 1.05em; }
+.horario-table .time-header { background-color: var(--secondary-blue); position: sticky; left: 0; z-index: 10; }
 
-/* Encabezados de la tabla (Días y Horas) */
-.horario-table thead th {
-    background-color: var(--primary-dark);
-    color: white;
-    padding: 15px 10px;
-    font-weight: 500;
-    text-align: center;
-    border: 1px solid var(--primary-hover);
-    font-size: 1.05em;
-}
+.time-slot { background-color: #F8F9FA; border-right: 3px solid var(--background-light); padding: 12px; font-weight: 700; text-align: center; position: sticky; left: 0; z-index: 5; color: var(--text-dark); }
+.class-slot { border: 1px solid #ECEFF1; padding: 10px; text-align: center; min-width: 150px; height: 90px; vertical-align: top; background-color: #F8F8F8; }
 
-/* Columna de Hora (Fija) */
-.horario-table .time-header {
-    background-color: var(--secondary-blue);
-    position: sticky;
-    left: 0;
-    z-index: 10;
-}
+.class-active { background-color: var(--primary-active-light); border: 1px solid var(--secondary-blue); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
+.class-active:hover { box-shadow: 0 0 0 3px var(--secondary-blue); z-index: 100; }
 
-/* Celdas de tiempo y contenido */
-.time-slot {
-    background-color: #F8F9FA;
-    border-right: 3px solid var(--background-light); /* Separador visual más grueso */
-    padding: 12px;
-    font-weight: 700;
-    text-align: center;
-    position: sticky; 
-    left: 0;
-    z-index: 5;
-    color: var(--text-dark);
-}
+.class-active .materia { display: block; font-weight: 700; color: var(--primary-dark); font-size: 1.05em; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.class-active .details { display: block; font-size: 0.8em; color: var(--text-muted); line-height: 1.2; }
 
-.class-slot {
-    border: 1px solid #ECEFF1;
-    padding: 10px;
-    text-align: center;
-    min-width: 150px;
-    height: 90px;
-    vertical-align: top;
-    background-color: #F8F8F8; /* Celdas vacías con fondo gris claro */
-}
-
-/* Estilo para las clases ocupadas */
-.class-active {
-    background-color: var(--primary-active-light); /* Fondo Azul muy claro */
-    border: 1px solid var(--secondary-blue);
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    position: relative;
-    overflow: hidden;
-}
-
-.class-active:hover {
-    box-shadow: 0 0 0 3px var(--secondary-blue);
-    z-index: 100; /* Asegura que la celda activa esté sobre sus vecinos al hacer hover */
-}
-
-.class-active .materia {
-    display: block;
-    font-weight: 700;
-    color: var(--primary-dark);
-    font-size: 1.05em;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.class-active .details {
-    display: block;
-    font-size: 0.8em;
-    color: var(--text-muted); 
-    line-height: 1.2;
-}
-
-/* Estilo para indicar un Receso/Libre */
-.class-break {
-    background-color: #FFFDE7; /* Amarillo muy suave */
-    border: 1px solid #FFEB3B;
-}
-
-.class-break .materia {
-    color: #FF9800; /* Naranja para el texto */
-}
+.class-break { background-color: #FFFDE7; border: 1px solid #FFEB3B; }
+.class-break .materia { color: #FF9800; }
 
 /* Media Query para mejorar la lectura en filas pares/impares */
-.horario-table tbody tr:nth-child(even) .class-slot {
-    background-color: #F0F4F7;
-}
-
-.horario-table tbody tr:nth-child(even) .time-slot {
-    background-color: #E6E9EC;
-}
+.horario-table tbody tr:nth-child(even) .class-slot { background-color: #F0F4F7; }
+.horario-table tbody tr:nth-child(even) .time-slot { background-color: #E6E9EC; }
