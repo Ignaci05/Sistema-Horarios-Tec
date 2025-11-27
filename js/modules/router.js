@@ -4,6 +4,7 @@ import { loadDocentesView } from '../views/docentesView.js';
 import { loadGruposView } from '../views/gruposViews.js';
 import { loadAulasView } from '../views/aulasView.js';
 import { loadHorarioGridView } from '../views/horarioGridView.js';
+import { loadDocenteProfile } from '../views/perfilDocente.js';
 // Mapeo de vistas a sus requerimientos de rol (RF 1)
 const VIEWS_MAP = {
     'view-horario': {
@@ -39,7 +40,8 @@ const VIEWS_MAP = {
     'view-perfil-docente': {
         name: 'Mi Perfil/Horario',
         roles: ['docente'], // Docente debe poder seleccionar materias y ver su horario [cite: 23, 24]
-        icon: '👤'
+        icon: '👤',
+        loadFunction: loadDocenteProfile
     }
 };
 

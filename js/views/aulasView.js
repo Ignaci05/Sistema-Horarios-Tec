@@ -1,7 +1,8 @@
 // js/views/aulasView.js
 
 import { getAulas, saveAula, deleteAula } from '../modules/aulasData.js';
-import { getGrupos } from '../modules/gruposData.js'; // ⬅️ Importar grupos para leer horarios
+import { getGrupos } from '../modules/gruposData.js'; // Para leer horarios
+import { showAlert, showConfirm } from '../modules/uiHandler.js'; // 🆕 Modales
 
 let currentAulaId = null; 
 
@@ -30,13 +31,11 @@ const buildScheduleMap = async (aulaId) => {
     const grupos = await getGrupos();
     const scheduleMap = {};
 
-    // Filtrar grupos que pertenecen a esta aula
     const aulaGrupos = grupos.filter(g => g.aulaId === aulaId);
 
     aulaGrupos.forEach(grupo => {
         if (grupo.horario && Array.isArray(grupo.horario)) {
             grupo.horario.forEach(slot => {
-                // slot formato: "Lunes-7"
                 scheduleMap[slot] = {
                     materia: grupo.materiaNombre || 'Materia Desconocida',
                     grupoNombre: grupo.nombre,
@@ -86,7 +85,6 @@ const showAulaSchedule = async (aulaId, aulaNombre) => {
             const ocupacion = scheduleMap[slotKey];
 
             if (ocupacion) {
-                // CELDA OCUPADA
                 gridHTML += `
                     <td style="background-color: #E3F2FD; border: 1px solid #BBDEFB; padding: 5px;">
                         <div style="font-weight:bold; color:var(--primary-dark); font-size:0.95em;">${ocupacion.materia}</div>
@@ -94,7 +92,6 @@ const showAulaSchedule = async (aulaId, aulaNombre) => {
                         <div style="font-size:0.8em; color:#888;">(${ocupacion.alumnos} alum.)</div>
                     </td>`;
             } else {
-                // CELDA DISPONIBLE
                 gridHTML += `
                     <td style="background-color: white; color: #ddd; vertical-align:middle;">
                         <small>Disponible</small>
@@ -170,11 +167,13 @@ const setupFormListeners = () => {
 
         try {
             await saveAula(aula);
-            alert(`Aula guardada con éxito.`);
+            // ✅ Modal Éxito
+            await showAlert('Operación Exitosa', `Aula ${aula.id ? 'actualizada' : 'registrada'} con éxito.`, 'success');
             fillForm(null); 
             renderAulasTable(); 
         } catch (error) {
-            alert("Error: " + error.message);
+            // ❌ Modal Error
+            await showAlert('Error al Guardar', error.message, 'error');
         }
     });
 
@@ -197,14 +196,21 @@ const setupTableListeners = (aulas) => {
 
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            if (confirm('¿Eliminar aula? Se recomienda reasignar sus grupos antes.')) {
-                try { await deleteAula(btn.dataset.id); renderAulasTable(); } 
-                catch (error) { alert(error.message); }
+            // ⚠️ Modal Confirmación
+            const confirm = await showConfirm('¿Eliminar Aula?', 'Se recomienda reasignar sus grupos antes de eliminar. ¿Desea continuar?');
+            
+            if (confirm) {
+                try {
+                    await deleteAula(btn.dataset.id);
+                    await showAlert('Eliminada', 'Aula eliminada correctamente.', 'success');
+                    renderAulasTable(); 
+                } catch (error) {
+                    await showAlert('Error', error.message, 'error');
+                }
             }
         });
     });
 
-    // Listener para VER OCUPACIÓN
     document.querySelectorAll('.schedule-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = btn.dataset.id;

@@ -80,3 +80,54 @@ export const deleteDocente = async (id) => {
         throw new Error("No se pudo eliminar el docente.");
     }
 };
+
+/**
+ * Obtiene un docente específico por su ID (UID).
+ */
+export const getDocenteById = async (id) => {
+    try {
+        const doc = await db.collection(DOCENTES_COLLECTION).doc(id).get();
+        if (doc.exists) {
+            return { id: doc.id, ...doc.data() };
+        }
+        return null;
+    } catch (error) {
+        console.error("Error al obtener docente:", error);
+        return null;
+    }
+};
+
+/**
+ * Actualiza la lista de materias que el docente puede impartir (RF 23).
+ * @param {string} id - ID del docente.
+ * @param {Array} materiasIds - Array de IDs de materias seleccionadas.
+ */
+export const updateDocenteMaterias = async (id, materiasIds) => {
+    try {
+        await db.collection(DOCENTES_COLLECTION).doc(id).update({
+            materiasCapacitadas: materiasIds,
+            updatedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error("Error al actualizar capacidades:", error);
+        throw new Error("No se pudo guardar la selección de materias.");
+    }
+};
+
+/**
+ * Obtiene los docentes capacitados para una materia específica.
+ * @param {string} materiaId - ID de la materia.
+ * @returns {Promise<Array>} Lista de docentes aptos.
+ */
+export const getDocentesByMateria = async (materiaId) => {
+    try {
+        const allDocentes = await getDocentes(); // Reutilizamos la función base
+        // Filtramos en memoria porque 'materiasCapacitadas' es un array
+        return allDocentes.filter(d => 
+            d.materiasCapacitadas && d.materiasCapacitadas.includes(materiaId)
+        );
+    } catch (error) {
+        console.error("Error al filtrar docentes:", error);
+        return [];
+    }
+};

@@ -4,17 +4,24 @@ import { getGrupos } from '../modules/gruposData.js';
 import { getAulas } from '../modules/aulasData.js';
 import { getMaterias } from '../modules/materiasData.js';
 
-// Estado local para los filtros
+// Estado local
 let allGrupos = [];
 let filters = {
     aulaId: '',
     materiaId: ''
 };
+// Variables de sesión
+let currentUserRole = '';
+let currentUserId = '';
 
 /**
- * Carga los datos iniciales (Grupos, Aulas, Materias).
+ * Carga los datos iniciales.
  */
 const loadData = async () => {
+    // Obtener datos de sesión
+    currentUserRole = localStorage.getItem('userRole');
+    currentUserId = localStorage.getItem('userUID');
+
     const [grupos, aulas, materias] = await Promise.all([
         getGrupos(),
         getAulas(),
@@ -23,7 +30,7 @@ const loadData = async () => {
     
     allGrupos = grupos;
     populateFilters(aulas, materias);
-    renderGrid(); // Renderizado inicial (muestra todo o vacío según diseño)
+    renderGrid(); 
 };
 
 /**
@@ -49,7 +56,7 @@ const populateFilters = (aulas, materias) => {
 };
 
 /**
- * Aplica los filtros y redibuja la parrilla.
+ * Aplica los filtros manuales.
  */
 const applyFilters = () => {
     filters.aulaId = document.getElementById('filter-aula').value;
@@ -64,14 +71,21 @@ const renderGrid = () => {
     const gridContainer = document.getElementById('horario-grid-body');
     if (!gridContainer) return;
 
-    // Limpiar parrilla (manteniendo estructura si fuera necesario, pero aquí reconstruimos rows)
     gridContainer.innerHTML = '';
 
     const horas = [7, 8, 9, 10, 11, 12, 13, 14];
     const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
-    // Filtrar grupos según selección
-    const filteredGrupos = allGrupos.filter(g => {
+    // 1. FILTRO DE SEGURIDAD/ROL:
+    // Si es docente, solo mostramos SUS grupos. Si es Admin, mostramos todos.
+    let baseGrupos = allGrupos;
+    
+    if (currentUserRole === 'docente') {
+        baseGrupos = allGrupos.filter(g => g.docenteId === currentUserId);
+    }
+
+    // 2. FILTROS DE UI (Aula/Materia)
+    const filteredGrupos = baseGrupos.filter(g => {
         const matchAula = filters.aulaId ? g.aulaId === filters.aulaId : true;
         const matchMateria = filters.materiaId ? g.materiaId === filters.materiaId : true;
         return matchAula && matchMateria;
@@ -95,16 +109,19 @@ const renderGrid = () => {
             cell.className = 'class-slot';
             const slotKey = `${dia}-${hora}`;
 
-            // Buscar grupos que tengan clase en este día y hora
+            // Buscar coincidencias en los grupos filtrados
             const activeGroups = filteredGrupos.filter(g => g.horario && g.horario.includes(slotKey));
 
             if (activeGroups.length > 0) {
-                // Renderizar "Tarjetas" para cada clase en este horario
                 activeGroups.forEach(grupo => {
                     const card = document.createElement('div');
+                    // Estilo diferente para el docente para resaltar que es SU clase
+                    const borderColor = currentUserRole === 'docente' ? '#4CAF50' : 'var(--secondary-blue)';
+                    const bgColor = currentUserRole === 'docente' ? '#E8F5E9' : '#E3F2FD';
+
                     card.style.cssText = `
-                        background-color: #E3F2FD; 
-                        border-left: 4px solid var(--secondary-blue); 
+                        background-color: ${bgColor}; 
+                        border-left: 4px solid ${borderColor}; 
                         padding: 4px 6px; 
                         margin-bottom: 4px; 
                         border-radius: 4px;
@@ -113,23 +130,26 @@ const renderGrid = () => {
                     `;
                     
                     // Contenido de la tarjeta
+                    // Si soy docente, me interesa ver el GRUPO y el AULA.
+                    // Si soy Admin, me interesa ver el DOCENTE también.
+                    let detailText = `<span>${grupo.aulaNombre}</span> <span style="font-weight:bold;">${grupo.nombre}</span>`;
+                    
+                    if (currentUserRole !== 'docente') {
+                        // Mostrar nombre del profe para el admin
+                        const nombreProfe = grupo.docenteNombre ? grupo.docenteNombre.split(' ')[0] : 'Sin Asignar';
+                        detailText += `<div style="font-size:0.8em; color:#666; margin-top:2px;">${nombreProfe}</div>`;
+                    }
+
                     card.innerHTML = `
                         <div style="font-weight:bold; color:var(--primary-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                             ${grupo.materiaNombre}
                         </div>
-                        <div style="display:flex; justify-content:space-between; color:#555; font-size:0.9em;">
-                            <span>${grupo.aulaNombre}</span>
-                            <span style="font-weight:bold;">${grupo.nombre}</span>
+                        <div style="display:flex; flex-direction:column; color:#555; font-size:0.9em;">
+                            ${detailText}
                         </div>
                     `;
                     cell.appendChild(card);
                 });
-                
-                // Si hay muchas clases (vista general), mostrar indicador de scroll o resumen
-                if (activeGroups.length > 3) {
-                    cell.style.overflowY = "auto";
-                    cell.style.maxHeight = "100px"; // Limitar altura de celda
-                }
             }
 
             row.appendChild(cell);
@@ -137,11 +157,15 @@ const renderGrid = () => {
 
         gridContainer.appendChild(row);
     });
+    
+    // Mensaje si está vacío (útil para docentes sin carga)
+    if (filteredGrupos.length === 0 && currentUserRole === 'docente') {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="6" style="text-align:center; padding:20px; color:#666;">No tienes clases asignadas en este horario.</td>`;
+        gridContainer.appendChild(row);
+    }
 };
 
-/**
- * Configura los listeners de los filtros.
- */
 const setupListeners = () => {
     document.getElementById('filter-aula').addEventListener('change', applyFilters);
     document.getElementById('filter-materia').addEventListener('change', applyFilters);
@@ -157,10 +181,17 @@ const setupListeners = () => {
  */
 export const loadHorarioGridView = () => {
     const appContent = document.getElementById('app-content');
+    const role = localStorage.getItem('userRole');
     
+    // Título dinámico
+    const titulo = role === 'docente' ? 'Mi Horario de Clases' : 'Horario General Institucional';
+    const desc = role === 'docente' 
+        ?'Consulta tus asignaciones académicas, aulas y grupos.' 
+        : 'Vista global de ocupación. Filtra por aula o materia.';
+
     appContent.innerHTML = `
-        <h2 class="section-title">Horario General</h2>
-        <p class="description-text">Vista global de ocupación. [cite_start]Utiliza los filtros para ver aulas o materias específicas. [cite: 11, 46, 48]</p>
+        <h2 class="section-title">${titulo}</h2>
+        <p class="description-text">${desc}</p>
 
         <div class="card p-30">
             <div class="filter-controls" style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid #eee;">
@@ -173,7 +204,7 @@ export const loadHorarioGridView = () => {
                     <select id="filter-materia" class="control-select"><option>Cargando...</option></select>
                 </div>
                 <div style="display:flex; align-items:flex-end;">
-                    <button id="btn-reset-filters" class="btn btn-secondary btn-sm" style="height:42px;">Limpiar Filtros</button>
+                    <button id="btn-reset-filters" class="btn btn-secondary btn-sm" style="height:42px;">Limpiar</button>
                 </div>
             </div>
 
@@ -190,7 +221,7 @@ export const loadHorarioGridView = () => {
                         </tr>
                     </thead>
                     <tbody id="horario-grid-body">
-                        <tr><td colspan="6" style="text-align:center; padding:20px;">Cargando datos del sistema...</td></tr>
+                        <tr><td colspan="6" style="text-align:center; padding:20px;">Cargando horario...</td></tr>
                     </tbody>
                 </table>
             </div>

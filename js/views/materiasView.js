@@ -1,11 +1,12 @@
 // js/views/materiasView.js
-import { getMaterias, saveMateria, deleteMateria } from '../modules/materiasData.js';
 
-let currentMateriaId = null; // Variable para almacenar el ID de la materia en edición
+import { getMaterias, saveMateria, deleteMateria } from '../modules/materiasData.js';
+import { showAlert, showConfirm } from '../modules/uiHandler.js'; // ✅ Importamos modales
+
+let currentMateriaId = null;
 
 /**
- * Renderiza la fila de una materia en la tabla.
- * @param {Object} materia - Objeto de la materia.
+ * Renderiza la fila de una materia.
  */
 const renderMateriaRow = (materia) => {
     return `
@@ -32,7 +33,7 @@ const renderMateriasTable = async () => {
     tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando materias...</td></tr>';
     
     const materias = await getMaterias();
-    tableBody.innerHTML = ''; // Limpiar mensaje de carga
+    tableBody.innerHTML = ''; 
 
     if (materias.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay materias registradas.</td></tr>';
@@ -48,7 +49,6 @@ const renderMateriasTable = async () => {
 
 /**
  * Rellena el formulario con datos para edición.
- * @param {Object|null} materia - Datos de la materia a editar o null para nuevo.
  */
 const fillForm = (materia = null) => {
     const form = document.getElementById('materia-form');
@@ -68,7 +68,9 @@ const fillForm = (materia = null) => {
  */
 const setupFormListeners = () => {
     const form = document.getElementById('materia-form');
-    if (!form) return;
+    const clearBtn = document.getElementById('clear-materia-btn'); // 🆕 ID botón Limpiar
+
+    if (!form || !clearBtn) return;
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -82,42 +84,49 @@ const setupFormListeners = () => {
 
         try {
             await saveMateria(materia);
-            alert(`Materia ${materia.id ? 'actualizada' : 'creada'} con éxito.`);
-            fillForm(null); // Limpiar formulario
-            renderMateriasTable(); // Recargar tabla
+            // ✅ Modal de Éxito
+            await showAlert('Operación Exitosa', `Materia ${materia.id ? 'actualizada' : 'creada'} con éxito.`, 'success');
+            fillForm(null); 
+            renderMateriasTable(); 
         } catch (error) {
-            alert("Error al guardar: " + error.message);
+            // ❌ Modal de Error
+            await showAlert('Error al Guardar', error.message, 'error');
         }
+    });
+
+    clearBtn.addEventListener('click', () => {
+        form.reset();
+        fillForm(null);
     });
 };
 
 /**
- * Maneja los listeners de los botones de la tabla (Editar/Eliminar).
- * @param {Array} materias - Lista de todas las materias.
+ * Maneja los listeners de los botones de la tabla.
  */
 const setupTableListeners = (materias) => {
-    // Listener de Editar
+    // Editar
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.dataset.id;
             const materiaToEdit = materias.find(m => m.id === id);
-            if (materiaToEdit) {
-                fillForm(materiaToEdit);
-            }
+            if (materiaToEdit) fillForm(materiaToEdit);
         });
     });
 
-    // Listener de Eliminar
+    // Eliminar
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
-            if (confirm('¿Está seguro de que desea eliminar esta materia?')) {
+            // ⚠️ Modal de Confirmación
+            const confirm = await showConfirm('¿Eliminar Materia?', 'Esta acción no se puede deshacer. ¿Desea continuar?');
+            
+            if (confirm) {
                 try {
                     await deleteMateria(id);
-                    alert('Materia eliminada con éxito.');
-                    renderMateriasTable(); // Recargar tabla
+                    await showAlert('Eliminada', 'Materia eliminada con éxito.', 'success');
+                    renderMateriasTable(); 
                 } catch (error) {
-                    alert("Error al eliminar: " + error.message);
+                    await showAlert('Error', error.message, 'error');
                 }
             }
         });
@@ -130,7 +139,6 @@ const setupTableListeners = (materias) => {
 export const loadMateriasView = () => {
     const appContent = document.getElementById('app-content');
     
-    // Inyectar el HTML estático de la vista de Materias
     appContent.innerHTML = `
         <h2 class="section-title">Gestión de Materias (Asignaturas)</h2>
         <p class="description-text">Permite al Jefe de Departamento y Subdirector crear, editar y eliminar materias. Cada materia debe tener un número de horas semanales y créditos asociados.</p>
@@ -139,15 +147,24 @@ export const loadMateriasView = () => {
             <div class="form-container card p-30">
                 <h3 class="form-title">Crear/Editar Materia</h3>
                 <form id="materia-form" class="materia-form">
-                    <div class="form-group"><label for="nombre-materia">Nombre de la Materia:</label><input type="text" id="nombre-materia" required></div>
-                    <div class="form-group"><label for="horas-semanales">Horas Semanales:</label><input type="number" id="horas-semanales" min="1" max="10" required></div>
-                    <div class="form-group"><label for="creditos">Créditos Totales:</label><input type="number" id="creditos" min="1" required></div>
+                    <div class="form-group">
+                        <label for="nombre-materia">Nombre de la Materia:</label>
+                        <input type="text" id="nombre-materia" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="horas-semanales">Horas Semanales:</label>
+                        <input type="number" id="horas-semanales" min="1" max="10" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="creditos">Créditos Totales:</label>
+                        <input type="number" id="creditos" min="1" required>
+                    </div>
                     <button type="submit" class="btn btn-primary btn-block">Crear Materia</button>
-                    <button type="button" class="btn btn-secondary btn-block mt-10" onclick="document.getElementById('materia-form').reset(); fillForm(null);">Limpiar</button>
+                    <button type="button" id="clear-materia-btn" class="btn btn-secondary btn-block mt-10">Limpiar</button>
                 </form>
             </div>
 
-            <div class="table-container">
+            <div class="table-container card p-30">
                 <h3 class="table-title">Listado de Materias Registradas</h3>
                 <div class="table-responsive">
                     <table class="data-table">
@@ -160,15 +177,13 @@ export const loadMateriasView = () => {
                                 <th>Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="materias-table-body">
-                            </tbody>
+                        <tbody id="materias-table-body"></tbody>
                     </table>
                 </div>
             </div>
         </div>
     `;
 
-    // Inicializar la vista
     setupFormListeners();
     renderMateriasTable();
 };

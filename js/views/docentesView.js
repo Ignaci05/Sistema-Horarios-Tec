@@ -2,6 +2,7 @@
 
 import { getDocentes, saveDocente, deleteDocente } from '../modules/docentesData.js';
 import { loadView } from '../modules/router.js'; 
+import { showAlert, showConfirm } from '../modules/uiHandler.js';
 
 let currentDocenteId = null; 
 
@@ -116,7 +117,7 @@ const setupFormListeners = () => {
 
         try {
             await saveDocente(docente);
-            alert(`Docente ${docente.id ? 'actualizado' : 'registrado'} con éxito.`);
+           await showAlert('Operación Exitosa', `Docente ${docente.id ? 'actualizado' : 'registrado'} con éxito.`, 'success');
             
             // Recarga si cambia el rol propio (lógica existente)
             const currentUserID = localStorage.getItem('userUID');
@@ -130,7 +131,7 @@ const setupFormListeners = () => {
             fillForm(null); 
             renderDocentesTable(); 
         } catch (error) {
-            alert("Error: " + error.message);
+            await showAlert('Error al Guardar', error.message, 'error');
         }
     });
     
@@ -159,13 +160,14 @@ const setupTableListeners = (docentes) => {
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const id = btn.dataset.id;
-            if (confirm('¿Está seguro de que desea eliminar este docente?')) {
+            const confirm = await showConfirm('¿Eliminar Docente?', 'Esta acción no se puede deshacer. ¿Desea continuar?');
+            if (confirm) {
                 try {
                     await deleteDocente(id);
-                    alert('Docente eliminado con éxito.');
+                    await showAlert('Eliminado', 'Docente eliminado con éxito.', 'success');
                     renderDocentesTable(); 
                 } catch (error) {
-                    alert("Error al eliminar: " + error.message);
+                    await showAlert('Error', error.message, 'error');
                 }
             }
         });
