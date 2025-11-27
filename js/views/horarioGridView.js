@@ -27,10 +27,10 @@ const loadData = async () => {
         getAulas(),
         getMaterias()
     ]);
-    
+
     allGrupos = grupos;
     populateFilters(aulas, materias);
-    renderGrid(); 
+    renderGrid();
 };
 
 /**
@@ -39,7 +39,7 @@ const loadData = async () => {
 const populateFilters = (aulas, materias) => {
     const aulaSelect = document.getElementById('filter-aula');
     const materiaSelect = document.getElementById('filter-materia');
-    
+
     if (aulaSelect) {
         aulaSelect.innerHTML = '<option value="">Todas las Aulas</option>';
         aulas.forEach(a => {
@@ -79,7 +79,7 @@ const renderGrid = () => {
     // 1. FILTRO DE SEGURIDAD/ROL:
     // Si es docente, solo mostramos SUS grupos. Si es Admin, mostramos todos.
     let baseGrupos = allGrupos;
-    
+
     if (currentUserRole === 'docente') {
         baseGrupos = allGrupos.filter(g => g.docenteId === currentUserId);
     }
@@ -94,11 +94,11 @@ const renderGrid = () => {
     // Construir filas por hora
     horas.forEach(hora => {
         const row = document.createElement('tr');
-        
+
         // Celda de Hora
         const timeCell = document.createElement('td');
         timeCell.className = 'time-slot';
-        timeCell.textContent = `${hora}:00 - ${hora+1}:00`;
+        timeCell.textContent = `${hora}:00 - ${hora + 1}:00`;
         timeCell.style.fontWeight = 'bold';
         timeCell.style.background = '#f8f9fa';
         row.appendChild(timeCell);
@@ -128,12 +128,12 @@ const renderGrid = () => {
                         font-size: 0.85em;
                         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
                     `;
-                    
+
                     // Contenido de la tarjeta
                     // Si soy docente, me interesa ver el GRUPO y el AULA.
                     // Si soy Admin, me interesa ver el DOCENTE también.
                     let detailText = `<span>${grupo.aulaNombre}</span> <span style="font-weight:bold;">${grupo.nombre}</span>`;
-                    
+
                     if (currentUserRole !== 'docente') {
                         // Mostrar nombre del profe para el admin
                         const nombreProfe = grupo.docenteNombre ? grupo.docenteNombre.split(' ')[0] : 'Sin Asignar';
@@ -157,7 +157,7 @@ const renderGrid = () => {
 
         gridContainer.appendChild(row);
     });
-    
+
     // Mensaje si está vacío (útil para docentes sin carga)
     if (filteredGrupos.length === 0 && currentUserRole === 'docente') {
         const row = document.createElement('tr');
@@ -174,6 +174,71 @@ const setupListeners = () => {
         document.getElementById('filter-materia').value = '';
         applyFilters();
     });
+    document.getElementById('btn-export-csv').addEventListener('click', (e) => {
+        e.preventDefault();
+        exportToCSV();
+    });
+};
+/**
+ * Genera un archivo CSV secuencial basado en el rol.
+ * - Subdirector: Reporte General de todos los grupos y docentes.
+ * - Docente: Reporte de sus grupos asignados.
+ */
+const exportToCSV = () => {
+    // 1. Determinar qué datos exportar según el rol
+    let dataToExport = [];
+    let filename = "";
+
+    if (currentUserRole === 'docente') {
+        // Filtro: Solo mis grupos
+        dataToExport = allGrupos.filter(g => g.docenteId === currentUserId);
+        filename = `reporte_mis_grupos_${new Date().toISOString().slice(0, 10)}.csv`;
+    } else {
+        // Subdirector/Jefe: Todo
+        dataToExport = allGrupos;
+        filename = `reporte_general_grupos_${new Date().toISOString().slice(0, 10)}.csv`;
+    }
+
+    if (dataToExport.length === 0) {
+        alert("No hay datos para generar el reporte.");
+        return;
+    }
+
+    // 2. Definir Encabezados del CSV
+    // El formato CSV requiere separar por comas y nuevas líneas (\n)
+    let csvContent = "\uFEFF"; // BOM para que Excel reconozca acentos (UTF-8)
+    csvContent += "ID Grupo,Materia,Nombre Grupo,Docente Asignado,Num. Alumnos,Aula,Horario\n";
+
+    // 3. Construir el contenido secuencialmente
+    dataToExport.forEach(g => {
+        // Limpieza de datos (escapar comas dentro del texto para no romper columnas)
+        const materia = (g.materiaNombre || "Sin Materia").replace(/,/g, " ");
+        const grupo = (g.nombre || "").replace(/,/g, " ");
+        const docente = (g.docenteNombre || "VACANTE").replace(/,/g, " ");
+        const aula = (g.aulaNombre || "Sin Aula").replace(/,/g, " ");
+        const horarioStr = g.horario ? g.horario.join(" | ") : "Sin Horario";
+
+        // Fila del CSV
+        const row = `${g.id},${materia},${grupo},${docente},${g.numAlumnos},${aula},"${horarioStr}"`;
+        csvContent += row + "\n";
+    });
+
+    // 4. Crear y descargar el archivo
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+
+    // Crear URL temporal
+    if (navigator.msSaveBlob) { // IE 10+
+        navigator.msSaveBlob(blob, filename);
+    } else {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 };
 
 /**
@@ -182,11 +247,11 @@ const setupListeners = () => {
 export const loadHorarioGridView = () => {
     const appContent = document.getElementById('app-content');
     const role = localStorage.getItem('userRole');
-    
+
     // Título dinámico
     const titulo = role === 'docente' ? 'Mi Horario de Clases' : 'Horario General Institucional';
-    const desc = role === 'docente' 
-        ?'Consulta tus asignaciones académicas, aulas y grupos.' 
+    const desc = role === 'docente'
+        ? 'Consulta tus asignaciones académicas, aulas y grupos.'
         : 'Vista global de ocupación. Filtra por aula o materia.';
 
     appContent.innerHTML = `
@@ -206,6 +271,9 @@ export const loadHorarioGridView = () => {
                 <div style="display:flex; align-items:flex-end;">
                     <button id="btn-reset-filters" class="btn btn-secondary btn-sm" style="height:42px;">Limpiar</button>
                 </div>
+                <button id="btn-export-csv" class="btn btn-success btn-sm" style="height:42px; background-color: #27ae60; color: white; border:none;">
+                📄 Descargar Reporte
+                 </button>
             </div>
 
             <div class="horario-grid-container" style="overflow-x: auto;">

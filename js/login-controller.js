@@ -1,62 +1,66 @@
 // js/login-controller.js
 
-import { authenticate, findDocsByMatricula } from './modules/auth.js'; 
+// 🛑 CORRECCIÓN: Solo importamos 'authenticate'. Eliminamos 'findDocsByMatricula' que ya no existe.
+import { authenticate } from './modules/auth.js'; 
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const errorMessage = document.getElementById('errorMessage');
 
-    // 🛑 IMPORTANTE: Si ya hay una sesión (userRole), redirecciona inmediatamente para EVITAR el ciclo.
+    // Si ya hay sesión, redirigir
     if (localStorage.getItem('userRole')) {
         window.location.href = 'dashboard.html';
         return;
     }
 
-    // Lógica para el formulario de Login (solo si no hay sesión)
     if (loginForm) {
         loginForm.addEventListener('submit', async (event) => {
             event.preventDefault(); 
-            errorMessage.textContent = '';
-            errorMessage.style.display = 'none';
+            
+            if (errorMessage) {
+                errorMessage.textContent = '';
+                errorMessage.style.display = 'none';
+            }
 
-            const matricula = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const loginButton = document.querySelector('button[type="submit"]');
 
-            // Deshabilitar botón mientras autentica
-            const loginButton = document.querySelector('.btn-primary');
+            const matricula = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            // Feedback visual
+            const originalBtnText = loginButton.textContent;
             loginButton.textContent = 'Verificando...';
             loginButton.disabled = true;
 
-            const authResult = await authenticate(matricula, password);
+            try {
+                // Llamada al nuevo auth.js (que conecta con MySQL)
+                const authResult = await authenticate(matricula, password);
 
-            if (authResult) {
-                // Éxito: Guardar los datos de la sesión
-                localStorage.setItem('userRole', authResult.role);
-                localStorage.setItem('userName', authResult.nombre);
-                localStorage.setItem('userUID', authResult.uid);
-                
-                window.location.href = 'dashboard.html'; 
-            } else {
-                // Fallo
-                errorMessage.textContent = 'Matrícula o Contraseña incorrecta.';
-                errorMessage.style.display = 'block';
+                if (authResult) {
+                    // Guardar sesión
+                    localStorage.setItem('userRole', authResult.role);
+                    localStorage.setItem('userName', authResult.nombre);
+                    localStorage.setItem('userUID', authResult.uid);
+                    
+                    window.location.href = 'dashboard.html'; 
+                } else {
+                    throw new Error('Credenciales incorrectas');
+                }
+            } catch (error) {
+                if (errorMessage) {
+                    errorMessage.textContent = 'Usuario o contraseña incorrectos.';
+                    errorMessage.style.display = 'block';
+                } else {
+                    alert('Usuario o contraseña incorrectos.');
+                }
+                console.error(error);
+            } finally {
+                // Restaurar botón
+                loginButton.textContent = originalBtnText;
+                loginButton.disabled = false;
             }
-
-            loginButton.textContent = 'Acceder';
-            loginButton.disabled = false;
-        });
-    }
-
-    // Botón temporal de depuración: listar documentos que coinciden con la matrícula
-    const debugBtn = document.getElementById('debugBtn');
-    if (debugBtn) {
-        debugBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const matricula = document.getElementById('username').value.trim();
-            console.debug('[debug] Buscando docs para matricula:', matricula);
-            const docs = await findDocsByMatricula(matricula);
-            console.debug('[debug] Resultados:', docs);
-            if (docs.length === 0) console.warn('[debug] No se encontraron documentos para esa matrícula');
         });
     }
 });

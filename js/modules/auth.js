@@ -1,108 +1,56 @@
 // js/modules/auth.js
 
-// Importar los módulos de Firebase
-import { db } from './firebase-config.js'; 
+const API_URL = 'http://localhost:3000/api/login';
 
-/**
- * Función que maneja la autenticación consultando la colección 'docentes' en Firestore.
- * Utiliza 'matricula' y 'contraseña' para la validación.
- * * @param {string} matricula - La matrícula del docente (usada como username).
- * @param {string} password - La contraseña.
- * @returns {Promise<string|null>} El rol del usuario ('docente' fijo) o null en caso de error.
- */
 export const authenticate = async (matricula, password) => {
-    
+    console.log("1. Intentando conectar a:", API_URL);
+    console.log("2. Datos enviados:", { matricula, password });
+
     try {
-        const docentesRef = db.collection('docentes');
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                matricula: matricula.trim(), 
+                password: password.trim() 
+            })
+        });
 
-        // Normalizar entrada
-        const normalizedMatricula = (matricula ?? '').toString().trim();
+        console.log("3. Respuesta del servidor recibida. Status:", response.status);
 
-        // Intenta la búsqueda con la matrícula normalizada, UPPERCASE y lowercase
-        let snapshot = await docentesRef
-            .where('matricula', '==', normalizedMatricula)
-            .limit(1)
-            .get();
-
-        if (snapshot.empty) {
-            snapshot = await docentesRef.where('matricula', '==', normalizedMatricula.toUpperCase()).limit(1).get();
-        }
-        
-        if (snapshot.empty) {
-            snapshot = await docentesRef.where('matricula', '==', normalizedMatricula.toLowerCase()).limit(1).get();
-        }
-
-        if (snapshot.empty) {
-            console.error('Error de autenticación: Matrícula no encontrada.');
-            return null;
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error del servidor: ${response.status}`);
         }
 
-        // Obtener los datos del usuario y verificar la contraseña
-        const doc = snapshot.docs[0];
-        const userData = doc.data();
-        console.debug('[auth] Usuario encontrado:', { id: doc.id, ...userData });
+        const data = await response.json();
+        console.log("4. Datos recibidos:", data);
 
-        // Comparación de Contraseña (usando contrasena o password)
-        const storedPassword = (userData.contrasena ?? userData.password ?? '').toString().trim();
-        const givenPassword = (password ?? '').toString().trim();
-
-        if (storedPassword === givenPassword) {
-            
-            // 3. Éxito: Devolver el rol dinámicamente.
-            // Si el campo 'role' existe, lo usa; de lo contrario, asume 'docente' como fallback.
-            const userRole = userData.rol || 'docente'; 
-
+        if (data.success) {
             return {
-                role: userRole,
-                uid: doc.id, // El ID del documento en Firestore
-                nombre: userData.nombre
+                role: data.user.role,
+                uid: data.user.uid.toString(),
+                nombre: data.user.nombre
             };
         } else {
-            console.error("Error de autenticación: Contraseña incorrecta.");
             return null;
         }
 
     } catch (error) {
-        console.error("Error al buscar usuario en Firestore:", error.message);
+        console.error("❌ Error CRÍTICO en auth.js:", error);
+        
+        // Mensaje amigable según el tipo de error
+        if (error.message.includes("Failed to fetch")) {
+            alert("Error de Conexión: No se puede contactar al servidor (Backend).\n\n1. ¿Ejecutaste 'node server.js'?\n2. ¿Está corriendo en el puerto 3000?");
+        } else {
+            alert(`Error de Login: ${error.message}`);
+        }
         return null;
     }
 };
 
-/**
- * Función de depuración: devuelve todos los documentos que coinciden con una matrícula
- * (intenta exact, UPPERCASE y lowercase). Útil para desarrollo.
- */
-export const findDocsByMatricula = async (matricula) => {
-    try {
-        const docentesRef = db.collection('docentes');
-        const rawMatricula = (matricula ?? '').toString();
-        const normalizedMatricula = rawMatricula.trim();
-
-        const results = [];
-
-        const q1 = await docentesRef.where('matricula', '==', normalizedMatricula).get();
-        q1.forEach(d => results.push({ id: d.id, data: d.data() }));
-
-        if (results.length === 0) {
-            const q2 = await docentesRef.where('matricula', '==', normalizedMatricula.toUpperCase()).get();
-            q2.forEach(d => results.push({ id: d.id, data: d.data() }));
-        }
-
-        if (results.length === 0) {
-            const q3 = await docentesRef.where('matricula', '==', normalizedMatricula.toLowerCase()).get();
-            q3.forEach(d => results.push({ id: d.id, data: d.data() }));
-        }
-
-        return results;
-    } catch (err) {
-        console.error('[auth][debug] Error buscando docs:', err.message || err);
-        return [];
-    }
-};
-
-/**
- * Función para simular el cierre de sesión (solo limpia el almacenamiento local).
- */
 export const logout = () => {
     localStorage.removeItem('userRole');
     localStorage.removeItem('userName'); 
