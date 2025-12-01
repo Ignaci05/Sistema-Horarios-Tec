@@ -1,10 +1,14 @@
-// js/modules/docentesData.js (HÍBRIDO: Firestore + MySQL API)
+// js/modules/docentesData.js (VERSIÓN FINAL Y ROBUSTA)
 
 import { db } from './firebase-config.js'; 
 
 const DOCENTES_COLLECTION = 'docentes';
-const API_URL = 'http://localhost:3000/api/usuarios'; // URL de tu Backend
+// Ajusta la URL si ya estás en producción o sigues en local
+const API_URL = 'http://localhost:3000/api/usuarios'; 
 
+/**
+ * Obtiene todos los docentes de Firestore.
+ */
 export const getDocentes = async () => {
     try {
         const snapshot = await db.collection(DOCENTES_COLLECTION).get();
@@ -19,6 +23,9 @@ export const getDocentes = async () => {
     }
 };
 
+/**
+ * Obtiene un docente específico por su ID (UID de Firestore).
+ */
 export const getDocenteById = async (id) => {
     try {
         const doc = await db.collection(DOCENTES_COLLECTION).doc(id).get();
@@ -26,14 +33,86 @@ export const getDocenteById = async (id) => {
             return { id: doc.id, ...doc.data() };
         }
         return null;
-    } catch (error) { return null; }
+    } catch (error) { 
+        console.error("Error getDocenteById:", error);
+        return null; 
+    }
 };
 
-export const updateDocenteMaterias = async (id, materiasIds) => { /* ... igual ... */ };
-export const getDocentesByMateria = async (materiaId) => { /* ... igual ... */ };
+/**
+ * 🔍 BUSQUEDA ROBUSTA POR MATRÍCULA (Solución a tu error)
+ * Intenta encontrar al docente probando exacto, mayúsculas y minúsculas.
+ */
+export const getDocenteByMatricula = async (matricula) => {
+    try {
+        const mat = (matricula || '').trim();
+        const collection = db.collection(DOCENTES_COLLECTION);
+
+        // 1. Intento Exacto
+        let snapshot = await collection.where('matricula', '==', mat).limit(1).get();
+        
+        // 2. Intento Mayúsculas (D-003)
+        if (snapshot.empty) {
+            snapshot = await collection.where('matricula', '==', mat.toUpperCase()).limit(1).get();
+        }
+
+        // 3. Intento Minúsculas (d-003)
+        if (snapshot.empty) {
+            snapshot = await collection.where('matricula', '==', mat.toLowerCase()).limit(1).get();
+        }
+
+        if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            return { id: doc.id, ...doc.data() };
+        }
+        
+        console.warn(`[DocentesData] No se encontró docente con matrícula: ${matricula}`);
+        return null;
+
+    } catch (error) {
+        console.error("Error al buscar docente por matrícula:", error);
+        return null;
+    }
+};
 
 /**
- * Guarda Docente en Firestore Y en MySQL (vía API).
+ * Actualiza la lista de materias que el docente puede impartir.
+ */
+export const updateDocenteMaterias = async (id, materiasIds) => {
+    try {
+        await db.collection(DOCENTES_COLLECTION).doc(id).update({
+            materiasCapacitadas: materiasIds,
+            updatedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error("Error al actualizar capacidades:", error);
+        throw new Error("No se pudo guardar la selección de materias.");
+    }
+};
+
+/**
+ * Obtiene los docentes capacitados para una materia específica.
+ */
+export const getDocentesByMateria = async (materiaId) => {
+    try {
+        const snapshot = await db.collection(DOCENTES_COLLECTION).get();
+        const aptos = [];
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.materiasCapacitadas && Array.isArray(data.materiasCapacitadas) && data.materiasCapacitadas.includes(materiaId)) {
+                aptos.push({ id: doc.id, ...data });
+            }
+        });
+        return aptos;
+    } catch (error) {
+        console.error("Error al filtrar docentes:", error);
+        return [];
+    }
+};
+
+/**
+ * Guarda Docente en Firestore Y en MySQL (Sincronización).
  */
 export const saveDocente = async (docente) => {
     // Validación
@@ -41,7 +120,6 @@ export const saveDocente = async (docente) => {
         throw new Error("La contraseña es requerida para el registro.");
     }
     
-    // 1. Preparar Datos
     const dataToSave = {
         nombre: docente.nombre,
         matricula: docente.matricula.toUpperCase(),
@@ -50,14 +128,12 @@ export const saveDocente = async (docente) => {
         updatedAt: new Date().toISOString()
     };
 
-    // (Opcional) Guardamos password en Firestore solo como respaldo, 
-    // aunque la "verdadera" auth ahora es MySQL.
     if (docente.password && docente.password.trim() !== "") {
         dataToSave.password = docente.password;
     }
     
     try {
-        // 2. OPERACIÓN EN MYSQL (Sincronización)
+        // Operación MySQL
         const method = docente.id ? 'PUT' : 'POST';
         const url = docente.id ? `${API_URL}/${docente.matricula}` : API_URL;
         
@@ -67,7 +143,7 @@ export const saveDocente = async (docente) => {
             body: JSON.stringify({
                 nombre: docente.nombre,
                 matricula: docente.matricula,
-                password: docente.password, // Puede ir vacío si es edición sin cambio
+                password: docente.password,
                 rol: docente.role
             })
         });
@@ -78,21 +154,19 @@ export const saveDocente = async (docente) => {
             throw new Error("MySQL Error: " + apiResult.message);
         }
 
-        // 3. OPERACIÓN EN FIRESTORE (Si MySQL tuvo éxito)
+        // Operación Firestore
         if (docente.id) {
-            // Actualizar Firestore
             await db.collection(DOCENTES_COLLECTION).doc(docente.id).update(dataToSave);
             return { id: docente.id, ...dataToSave };
         } else {
-            // Crear Firestore
             dataToSave.createdAt = new Date().toISOString();
             const docRef = await db.collection(DOCENTES_COLLECTION).add(dataToSave);
             return { id: docRef.id, ...dataToSave };
         }
 
     } catch (error) {
-        console.error("Error al guardar docente (Sincronización):", error);
-        throw new Error(error.message || "Error de sincronización con base de datos.");
+        console.error("Error al guardar docente:", error);
+        throw new Error(error.message || "Error de sincronización.");
     }
 };
 
@@ -101,23 +175,20 @@ export const saveDocente = async (docente) => {
  */
 export const deleteDocente = async (id) => {
     try {
-        // 1. Obtener la matrícula antes de borrar de Firestore (necesaria para MySQL)
         const docRef = db.collection(DOCENTES_COLLECTION).doc(id);
         const doc = await docRef.get();
         
         if (!doc.exists) throw new Error("Docente no encontrado en Firestore.");
-        
         const matricula = doc.data().matricula;
 
-        // 2. Borrar de MySQL
-        const apiResponse = await fetch(`${API_URL}/${matricula}`, { method: 'DELETE' });
-        if (!apiResponse.ok) console.warn("Advertencia: No se pudo borrar de MySQL o ya no existía.");
+        // MySQL
+        await fetch(`${API_URL}/${matricula}`, { method: 'DELETE' });
 
-        // 3. Borrar de Firestore
+        // Firestore
         await docRef.delete();
 
     } catch (error) {
         console.error("Error al eliminar docente:", error);
-        throw new Error("No se pudo eliminar el docente completamente.");
+        throw new Error("No se pudo eliminar el docente.");
     }
 };

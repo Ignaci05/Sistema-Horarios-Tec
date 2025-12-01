@@ -3,6 +3,7 @@
 import { getGrupos } from '../modules/gruposData.js';
 import { getAulas } from '../modules/aulasData.js';
 import { getMaterias } from '../modules/materiasData.js';
+import { getDocenteByMatricula } from '../modules/docentesData.js'; // 🆕 NECESARIO PARA TRADUCIR ID
 
 // Estado local
 let allGrupos = [];
@@ -10,27 +11,52 @@ let filters = {
     aulaId: '',
     materiaId: ''
 };
+
 // Variables de sesión
 let currentUserRole = '';
-let currentUserId = '';
+let currentUserId = ''; // Este será el ID de Firestore, no el de MySQL
 
 /**
  * Carga los datos iniciales.
  */
 const loadData = async () => {
-    // Obtener datos de sesión
-    currentUserRole = localStorage.getItem('userRole');
-    currentUserId = localStorage.getItem('userUID');
+    // 1. Obtener datos de sesión básicos
+    currentUserRole = localStorage.getItem('userRole'); 
+    const userMatricula = localStorage.getItem('userMatricula'); // 🆕 Usamos la matrícula como puente
 
+    // 2. Si es docente, necesitamos obtener su ID real de FIRESTORE, no el de MySQL
+    if (currentUserRole === 'docente' && userMatricula) {
+        try {
+            const docenteFirestore = await getDocenteByMatricula(userMatricula);
+            if (docenteFirestore) {
+                currentUserId = docenteFirestore.id; // ✅ Ahora tenemos el ID correcto (ej: oVd7W...)
+                console.log(`[HorarioGeneral] ID Firestore recuperado para docente: ${currentUserId}`);
+            } else {
+                console.warn("[HorarioGeneral] No se encontró perfil de Firestore para este docente.");
+            }
+        } catch (e) {
+            console.error("Error recuperando ID de docente:", e);
+        }
+    } else {
+        // Si es admin, el ID no importa para el filtro global
+        currentUserId = localStorage.getItem('userUID');
+    }
+
+    console.log(`[HorarioGeneral] Rol: ${currentUserRole}, ID Filtro: ${currentUserId}`);
+
+    // 3. Cargar datos de Firestore
     const [grupos, aulas, materias] = await Promise.all([
         getGrupos(),
         getAulas(),
         getMaterias()
     ]);
-
+    
     allGrupos = grupos;
+    console.log(`[HorarioGeneral] Total Grupos cargados: ${allGrupos.length}`);
+
+    // 4. Preparar UI
     populateFilters(aulas, materias);
-    renderGrid();
+    renderGrid(); 
 };
 
 /**
@@ -39,7 +65,7 @@ const loadData = async () => {
 const populateFilters = (aulas, materias) => {
     const aulaSelect = document.getElementById('filter-aula');
     const materiaSelect = document.getElementById('filter-materia');
-
+    
     if (aulaSelect) {
         aulaSelect.innerHTML = '<option value="">Todas las Aulas</option>';
         aulas.forEach(a => {
@@ -76,66 +102,74 @@ const renderGrid = () => {
     const horas = [7, 8, 9, 10, 11, 12, 13, 14];
     const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
-    // 1. FILTRO DE SEGURIDAD/ROL:
-    // Si es docente, solo mostramos SUS grupos. Si es Admin, mostramos todos.
+    // --- LÓGICA DE FILTRADO ---
+    
+    // 1. Filtro base por Rol
     let baseGrupos = allGrupos;
-
+    
     if (currentUserRole === 'docente') {
+        // Ahora currentUserId es el ID de Firestore, así que esto funcionará
         baseGrupos = allGrupos.filter(g => g.docenteId === currentUserId);
-    }
+    } 
 
-    // 2. FILTROS DE UI (Aula/Materia)
+    // 2. Filtros de UI (Aula y Materia)
     const filteredGrupos = baseGrupos.filter(g => {
-        const matchAula = filters.aulaId ? g.aulaId === filters.aulaId : true;
-        const matchMateria = filters.materiaId ? g.materiaId === filters.materiaId : true;
+        const matchAula = filters.aulaId === '' || g.aulaId === filters.aulaId;
+        const matchMateria = filters.materiaId === '' || g.materiaId === filters.materiaId;
         return matchAula && matchMateria;
     });
 
-    // Construir filas por hora
+    console.log(`[HorarioGeneral] Grupos a mostrar: ${filteredGrupos.length}`);
+
+    // --- CONSTRUCCIÓN DE LA TABLA ---
+
     horas.forEach(hora => {
         const row = document.createElement('tr');
-
+        
         // Celda de Hora
         const timeCell = document.createElement('td');
         timeCell.className = 'time-slot';
-        timeCell.textContent = `${hora}:00 - ${hora + 1}:00`;
+        timeCell.textContent = `${hora}:00 - ${hora+1}:00`;
         timeCell.style.fontWeight = 'bold';
         timeCell.style.background = '#f8f9fa';
+        timeCell.style.borderRight = '2px solid #ddd';
         row.appendChild(timeCell);
 
         // Celdas por Día
         dias.forEach(dia => {
             const cell = document.createElement('td');
             cell.className = 'class-slot';
+            cell.style.verticalAlign = 'top';
+            cell.style.padding = '5px';
+            cell.style.border = '1px solid #eee';
+            
             const slotKey = `${dia}-${hora}`;
 
-            // Buscar coincidencias en los grupos filtrados
+            // Buscar coincidencias
             const activeGroups = filteredGrupos.filter(g => g.horario && g.horario.includes(slotKey));
 
             if (activeGroups.length > 0) {
                 activeGroups.forEach(grupo => {
                     const card = document.createElement('div');
-                    // Estilo diferente para el docente para resaltar que es SU clase
-                    const borderColor = currentUserRole === 'docente' ? '#4CAF50' : 'var(--secondary-blue)';
-                    const bgColor = currentUserRole === 'docente' ? '#E8F5E9' : '#E3F2FD';
+                    
+                    const isMyClass = (grupo.docenteId === currentUserId);
+                    const bgColor = isMyClass ? '#E8F5E9' : '#E3F2FD'; 
+                    const borderColor = isMyClass ? '#4CAF50' : '#2196F3';
 
                     card.style.cssText = `
                         background-color: ${bgColor}; 
                         border-left: 4px solid ${borderColor}; 
-                        padding: 4px 6px; 
-                        margin-bottom: 4px; 
+                        padding: 6px; 
+                        margin-bottom: 5px; 
                         border-radius: 4px;
-                        font-size: 0.85em;
-                        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                        font-size: 0.8em;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                        text-align: left;
                     `;
-
-                    // Contenido de la tarjeta
-                    // Si soy docente, me interesa ver el GRUPO y el AULA.
-                    // Si soy Admin, me interesa ver el DOCENTE también.
+                    
                     let detailText = `<span>${grupo.aulaNombre}</span> <span style="font-weight:bold;">${grupo.nombre}</span>`;
-
+                    
                     if (currentUserRole !== 'docente') {
-                        // Mostrar nombre del profe para el admin
                         const nombreProfe = grupo.docenteNombre ? grupo.docenteNombre.split(' ')[0] : 'Sin Asignar';
                         detailText += `<div style="font-size:0.8em; color:#666; margin-top:2px;">${nombreProfe}</div>`;
                     }
@@ -157,101 +191,81 @@ const renderGrid = () => {
 
         gridContainer.appendChild(row);
     });
-
-    // Mensaje si está vacío (útil para docentes sin carga)
+    
     if (filteredGrupos.length === 0 && currentUserRole === 'docente') {
-        const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="6" style="text-align:center; padding:20px; color:#666;">No tienes clases asignadas en este horario.</td>`;
-        gridContainer.appendChild(row);
+        // Solo mostramos mensaje si no hay clases Y no se han aplicado filtros manuales extraños
+        if(filters.aulaId === '' && filters.materiaId === '') {
+             // Opcional: mostrar un aviso flotante o dejar en blanco
+        }
     }
 };
 
 const setupListeners = () => {
     document.getElementById('filter-aula').addEventListener('change', applyFilters);
     document.getElementById('filter-materia').addEventListener('change', applyFilters);
+    
     document.getElementById('btn-reset-filters').addEventListener('click', () => {
         document.getElementById('filter-aula').value = '';
         document.getElementById('filter-materia').value = '';
         applyFilters();
     });
-    document.getElementById('btn-export-csv').addEventListener('click', (e) => {
-        e.preventDefault();
-        exportToCSV();
-    });
+
+    const btnExport = document.getElementById('btn-export-csv');
+    if (btnExport) {
+        btnExport.addEventListener('click', () => {
+            exportToCSV();
+        });
+    }
 };
-/**
- * Genera un archivo CSV secuencial basado en el rol.
- * - Subdirector: Reporte General de todos los grupos y docentes.
- * - Docente: Reporte de sus grupos asignados.
- */
+
 const exportToCSV = () => {
-    // 1. Determinar qué datos exportar según el rol
     let dataToExport = [];
     let filename = "";
 
     if (currentUserRole === 'docente') {
-        // Filtro: Solo mis grupos
+        // Usar el ID corregido
         dataToExport = allGrupos.filter(g => g.docenteId === currentUserId);
-        filename = `reporte_mis_grupos_${new Date().toISOString().slice(0, 10)}.csv`;
+        filename = `Horario_Personal_${new Date().toISOString().slice(0,10)}.csv`;
     } else {
-        // Subdirector/Jefe: Todo
         dataToExport = allGrupos;
-        filename = `reporte_general_grupos_${new Date().toISOString().slice(0, 10)}.csv`;
+        filename = `Horario_General_${new Date().toISOString().slice(0,10)}.csv`;
     }
 
     if (dataToExport.length === 0) {
-        alert("No hay datos para generar el reporte.");
+        alert("No hay datos para exportar.");
         return;
     }
 
-    // 2. Definir Encabezados del CSV
-    // El formato CSV requiere separar por comas y nuevas líneas (\n)
-    let csvContent = "\uFEFF"; // BOM para que Excel reconozca acentos (UTF-8)
-    csvContent += "ID Grupo,Materia,Nombre Grupo,Docente Asignado,Num. Alumnos,Aula,Horario\n";
+    let csvContent = "\uFEFF"; 
+    csvContent += "ID,Materia,Grupo,Docente,Alumnos,Aula,Horario\n";
 
-    // 3. Construir el contenido secuencialmente
     dataToExport.forEach(g => {
-        // Limpieza de datos (escapar comas dentro del texto para no romper columnas)
-        const materia = (g.materiaNombre || "Sin Materia").replace(/,/g, " ");
-        const grupo = (g.nombre || "").replace(/,/g, " ");
-        const docente = (g.docenteNombre || "VACANTE").replace(/,/g, " ");
-        const aula = (g.aulaNombre || "Sin Aula").replace(/,/g, " ");
-        const horarioStr = g.horario ? g.horario.join(" | ") : "Sin Horario";
-
-        // Fila del CSV
-        const row = `${g.id},${materia},${grupo},${docente},${g.numAlumnos},${aula},"${horarioStr}"`;
-        csvContent += row + "\n";
+        const mat = (g.materiaNombre || "").replace(/,/g, " ");
+        const doc = (g.docenteNombre || "").replace(/,/g, " ");
+        const aula = (g.aulaNombre || "").replace(/,/g, " ");
+        const hor = (g.horario || []).join(" | ");
+        
+        csvContent += `${g.id},${mat},${g.nombre},${doc},${g.numAlumnos},${aula},"${hor}"\n`;
     });
 
-    // 4. Crear y descargar el archivo
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-
-    // Crear URL temporal
-    if (navigator.msSaveBlob) { // IE 10+
-        navigator.msSaveBlob(blob, filename);
-    } else {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
-/**
- * Función principal para cargar la vista.
- */
 export const loadHorarioGridView = () => {
     const appContent = document.getElementById('app-content');
     const role = localStorage.getItem('userRole');
-
-    // Título dinámico
+    
     const titulo = role === 'docente' ? 'Mi Horario de Clases' : 'Horario General Institucional';
-    const desc = role === 'docente'
-        ? 'Consulta tus asignaciones académicas, aulas y grupos.'
+    const desc = role === 'docente' 
+        ? 'Consulta tus asignaciones académicas, aulas y grupos.' 
         : 'Vista global de ocupación. Filtra por aula o materia.';
 
     appContent.innerHTML = `
@@ -268,12 +282,10 @@ export const loadHorarioGridView = () => {
                     <label style="font-weight:bold; font-size:0.9em;">Filtrar por Materia:</label>
                     <select id="filter-materia" class="control-select"><option>Cargando...</option></select>
                 </div>
-                <div style="display:flex; align-items:flex-end;">
+                <div style="display:flex; align-items:flex-end; gap:10px;">
                     <button id="btn-reset-filters" class="btn btn-secondary btn-sm" style="height:42px;">Limpiar</button>
+                    <button id="btn-export-csv" class="btn btn-success btn-sm" style="height:42px; background:#27ae60; color:white; border:none;">📄 Reporte CSV</button>
                 </div>
-                <button id="btn-export-csv" class="btn btn-success btn-sm" style="height:42px; background-color: #27ae60; color: white; border:none;">
-                📄 Descargar Reporte
-                 </button>
             </div>
 
             <div class="horario-grid-container" style="overflow-x: auto;">
@@ -289,7 +301,7 @@ export const loadHorarioGridView = () => {
                         </tr>
                     </thead>
                     <tbody id="horario-grid-body">
-                        <tr><td colspan="6" style="text-align:center; padding:20px;">Cargando horario...</td></tr>
+                        <tr><td colspan="6" style="text-align:center; padding:30px;">Cargando horario...</td></tr>
                     </tbody>
                 </table>
             </div>

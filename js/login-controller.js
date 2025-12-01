@@ -43,8 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('userRole', authResult.role);
                     localStorage.setItem('userName', authResult.nombre);
                     localStorage.setItem('userUID', authResult.uid);
+                    localStorage.setItem('userMatricula', authResult.matricula); // ⬅️ AGREGAR ESTO
                     
-                    window.location.href = 'dashboard.html'; 
+                    window.location.href = 'dashboard.html';
                 } else {
                     throw new Error('Credenciales incorrectas');
                 }

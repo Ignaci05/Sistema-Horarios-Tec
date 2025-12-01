@@ -32,7 +32,8 @@ export const authenticate = async (matricula, password) => {
             return {
                 role: data.user.role,
                 uid: data.user.uid.toString(),
-                nombre: data.user.nombre
+                nombre: data.user.nombre,
+                matricula: data.user.matricula // ⬅️ ¡ESTA LÍNEA ES CRUCIAL!
             };
         } else {
             return null;
@@ -55,5 +56,6 @@ export const logout = () => {
     localStorage.removeItem('userRole');
     localStorage.removeItem('userName'); 
     localStorage.removeItem('userUID');
+    localStorage.removeItem('userMatricula'); // Limpiamos también la matrícula
     window.location.href = 'index.html'; 
 };

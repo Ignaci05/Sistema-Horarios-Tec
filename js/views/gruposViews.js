@@ -4,11 +4,12 @@ import { getGrupos, saveGrupo, divideGrupo, deleteGrupo, getOccupiedSlots, check
 import { getAulas } from '../modules/aulasData.js';
 import { getMaterias } from '../modules/materiasData.js';
 import { getDocentesByMateria } from '../modules/docentesData.js';
-import { showAlert, showConfirm } from '../modules/uiHandler.js'; // ✅ Modales importados
+import { showAlert, showConfirm } from '../modules/uiHandler.js';
 
 let currentGrupoId = null;
 
-// ... (renderScheduleSelector y updateScheduleAvailability permanecen IGUAL) ...
+// --- FUNCIONES VISUALES (Horario) ---
+
 const renderScheduleSelector = () => {
     const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
     const horas = [7, 8, 9, 10, 11, 12, 13, 14]; 
@@ -27,17 +28,27 @@ const renderScheduleSelector = () => {
 
 const updateScheduleAvailability = async (aulaId, existingSchedule = []) => {
     const checkboxes = document.querySelectorAll('.schedule-checkbox');
+    
+    // Resetear contador visual
+    document.getElementById('horas-count-display').textContent = `0 horas seleccionadas`;
+
     if (!aulaId) {
         checkboxes.forEach(cb => { cb.disabled = true; cb.checked = false; cb.parentElement.parentElement.style.background = ''; });
         return;
     }
+    
+    // Bloquear mientras carga
     checkboxes.forEach(cb => cb.disabled = true);
     const occupiedSlots = await getOccupiedSlots(aulaId, currentGrupoId);
+    
+    let selectedCount = 0;
+
     checkboxes.forEach(cb => {
         const slot = cb.value;
         const cell = cb.parentElement.parentElement;
         cb.checked = false;
         cell.style.background = '';
+        
         if (occupiedSlots.includes(slot)) {
             cb.disabled = true;
             cell.style.background = '#ffcdd2'; 
@@ -47,14 +58,23 @@ const updateScheduleAvailability = async (aulaId, existingSchedule = []) => {
             if (existingSchedule.includes(slot)) {
                 cb.checked = true;
                 cell.style.background = '#c8e6c9';
+                selectedCount++;
             }
+            
+            // Listener para actualizar contador en tiempo real
+            cb.onclick = () => {
+                const count = document.querySelectorAll('.schedule-checkbox:checked').length;
+                document.getElementById('horas-count-display').textContent = `${count} horas seleccionadas`;
+                cb.parentElement.parentElement.style.background = cb.checked ? '#c8e6c9' : '';
+            };
         }
     });
+    
+    document.getElementById('horas-count-display').textContent = `${selectedCount} horas seleccionadas`;
 };
 
-/**
- * Lógica para buscar docentes aptos y disponibles.
- */
+// --- BÚSQUEDA DE DOCENTES ---
+
 const searchAvailableDocentes = async () => {
     const materiaId = document.getElementById('grupo-materia').value;
     const docenteSelect = document.getElementById('grupo-docente');
@@ -64,11 +84,11 @@ const searchAvailableDocentes = async () => {
     document.querySelectorAll('.schedule-checkbox:checked').forEach(cb => selectedSlots.push(cb.value));
 
     if (!materiaId) {
-        await showAlert('Falta Materia', 'Selecciona primero una Materia para buscar docentes.', 'error');
+        await showAlert('Falta Materia', 'Selecciona primero una Materia.', 'error');
         return;
     }
     if (selectedSlots.length === 0) {
-        await showAlert('Falta Horario', 'Selecciona primero un Horario para buscar docentes.', 'error');
+        await showAlert('Falta Horario', 'Selecciona primero el Horario.', 'error');
         return;
     }
 
@@ -89,37 +109,40 @@ const searchAvailableDocentes = async () => {
 
         for (const docente of aptDocentes) {
             const isAvailable = await checkDocenteAvailability(docente.id, selectedSlots, currentGrupoId);
-            
             if (isAvailable) {
                 docenteSelect.innerHTML += `<option value="${docente.id}" data-nombre="${docente.nombre}">${docente.nombre} (Disponible)</option>`;
                 countAvailable++;
             } else {
-                docenteSelect.innerHTML += `<option value="${docente.id}" disabled style="color:red;">${docente.nombre} (Ocupado en este horario)</option>`;
+                docenteSelect.innerHTML += `<option value="${docente.id}" disabled style="color:red;">${docente.nombre} (Ocupado)</option>`;
             }
         }
 
         if (countAvailable === 0) {
-            const option = document.createElement('option');
-            option.text = "Todos los docentes aptos están ocupados a esta hora.";
-            docenteSelect.add(option, 0);
+            const opt = document.createElement('option');
+            opt.text = "Todos los docentes aptos están ocupados.";
+            docenteSelect.add(opt, 0);
         }
     } catch (error) {
-        console.error(error);
-        await showAlert('Error', 'Ocurrió un error al buscar docentes.', 'error');
+        await showAlert('Error', 'Error al buscar docentes.', 'error');
     } finally {
         btnSearch.textContent = "🔍 Buscar Disponibles";
         btnSearch.disabled = false;
     }
 };
 
+// --- CARGA DE DATOS ---
+
 const loadSelects = async () => {
+    // 1. Materias: Agregamos data-horas para validación
     const materiaSelect = document.getElementById('grupo-materia');
     const materias = await getMaterias();
     materiaSelect.innerHTML = '<option value="">Selecciona Materia...</option>';
     materias.forEach(m => {
-        materiaSelect.innerHTML += `<option value="${m.id}" data-nombre="${m.nombre}">${m.nombre} (${m.horasSemanales}h)</option>`;
+        // 🆕 GUARDAMOS LAS HORAS REQUERIDAS EN EL ATRIBUTO DATA-HORAS
+        materiaSelect.innerHTML += `<option value="${m.id}" data-nombre="${m.nombre}" data-horas="${m.horasSemanales}">${m.nombre} (${m.horasSemanales}h/sem)</option>`;
     });
 
+    // 2. Aulas
     const aulaSelect = document.getElementById('grupo-aula');
     const aulas = await getAulas();
     aulaSelect.innerHTML = '<option value="">Selecciona Aula...</option>';
@@ -128,6 +151,19 @@ const loadSelects = async () => {
     });
 
     aulaSelect.addEventListener('change', (e) => updateScheduleAvailability(e.target.value, []));
+    
+    // Listener para mostrar recordatorio de horas al cambiar materia
+    materiaSelect.addEventListener('change', (e) => {
+        const option = e.target.options[e.target.selectedIndex];
+        const horas = option.getAttribute('data-horas');
+        const badge = document.getElementById('horas-required-display');
+        if (horas) {
+            badge.textContent = `Requeridas: ${horas} horas`;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    });
 };
 
 const renderGruposTable = async () => {
@@ -164,16 +200,20 @@ const renderGruposTable = async () => {
     setupTableListeners(grupos);
 };
 
+// --- LOGICA DEL FORMULARIO ---
+
 const fillForm = async (g = null) => {
     const form = document.getElementById('grupo-form');
     currentGrupoId = g ? g.id : null;
     form.reset();
-
-    // Resetear selects especiales
     document.getElementById('grupo-docente').innerHTML = '<option value="">Primero define Materia y Horario...</option>';
+    document.getElementById('horas-required-display').style.display = 'none';
 
     if (g) {
         document.getElementById('grupo-materia').value = g.materiaId || '';
+        // Disparar evento change para actualizar badge de horas
+        document.getElementById('grupo-materia').dispatchEvent(new Event('change'));
+        
         document.getElementById('grupo-nombre').value = g.nombre || '';
         document.getElementById('grupo-num-alumnos').value = g.numAlumnos || '';
         document.getElementById('grupo-aula').value = g.aulaId || '';
@@ -188,7 +228,6 @@ const fillForm = async (g = null) => {
             opt.disabled = true;
             docSelect.add(opt);
         }
-
         document.querySelector('#grupo-form button[type="submit"]').textContent = 'Actualizar';
     } else {
         updateScheduleAvailability(null);
@@ -206,14 +245,20 @@ const setupListeners = () => {
         const aulSel = document.getElementById('grupo-aula');
         const docSel = document.getElementById('grupo-docente');
         
+        // Recolectar horarios
         const slots = [];
         document.querySelectorAll('.schedule-checkbox:checked').forEach(cb => slots.push(cb.value));
 
-        // ✅ Validaciones con Modal
-        if (slots.length === 0) { 
-            await showAlert('Atención', 'Selecciona al menos un horario en la cuadrícula.', 'error'); 
-            return; 
+        // --- 🆕 VALIDACIÓN DE HORAS DE LA MATERIA ---
+        const selectedMatOption = matSel.options[matSel.selectedIndex];
+        const horasRequeridas = parseInt(selectedMatOption.getAttribute('data-horas'));
+        
+        if (slots.length !== horasRequeridas) {
+            await showAlert('Horario Incorrecto', `La materia "${selectedMatOption.text}" requiere exactamente ${horasRequeridas} horas semanales. Has seleccionado ${slots.length}.`, 'error');
+            return;
         }
+        // ---------------------------------------------
+
         if (!docSel.value) { 
             await showAlert('Falta Docente', 'Debes asignar un docente al grupo.', 'error'); 
             return; 
@@ -222,7 +267,7 @@ const setupListeners = () => {
         const grupo = {
             id: currentGrupoId,
             materiaId: matSel.value,
-            materiaNombre: matSel.options[matSel.selectedIndex].getAttribute('data-nombre'),
+            materiaNombre: selectedMatOption.getAttribute('data-nombre'),
             nombre: document.getElementById('grupo-nombre').value.trim(),
             numAlumnos: document.getElementById('grupo-num-alumnos').value,
             aulaId: aulSel.value,
@@ -234,21 +279,18 @@ const setupListeners = () => {
 
         try {
             await saveGrupo(grupo);
-            // ✅ Modal de Éxito
             await showAlert('Éxito', 'El grupo se ha guardado correctamente.', 'success');
-            
+            form.reset();
             fillForm(null);
             renderGruposTable();
         } catch (error) { 
-            // ✅ Modal de Error
             await showAlert('Error al Guardar', error.message, 'error'); 
         }
     });
 
     document.getElementById('clear-grupo-btn').addEventListener('click', () => fillForm(null));
-    
     document.getElementById('btn-search-docentes').addEventListener('click', (e) => {
-        e.preventDefault(); 
+        e.preventDefault();
         searchAvailableDocentes();
     });
 };
@@ -258,37 +300,16 @@ const setupTableListeners = (grupos) => {
         fillForm(grupos.find(g => g.id === b.dataset.id));
         document.querySelector('.crud-layout').scrollIntoView({ behavior: 'smooth' });
     }));
-    
-    // ✅ Eliminar con Modal de Confirmación
     document.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', async () => {
-        const confirm = await showConfirm('¿Eliminar Grupo?', 'Esta acción liberará el horario y el aula. ¿Deseas continuar?');
-        
-        if(confirm) { 
-            try { 
-                await deleteGrupo(b.dataset.id); 
-                await showAlert('Eliminado', 'Grupo eliminado correctamente.', 'success');
-                renderGruposTable(); 
-            } catch (e) { 
-                await showAlert('Error', e.message, 'error'); 
-            }
+        if(await showConfirm('¿Eliminar Grupo?', 'Se liberará el horario y el aula.')) { 
+            try { await deleteGrupo(b.dataset.id); await showAlert('Eliminado', 'Grupo eliminado.', 'success'); renderGruposTable(); } 
+            catch (e) { await showAlert('Error', e.message, 'error'); }
         }
     }));
-
-    // ✅ Dividir con Modal de Confirmación
     document.querySelectorAll('.div-btn').forEach(b => b.addEventListener('click', async () => {
-        const alumnos = parseInt(b.dataset.n);
-        const subgrupos = Math.ceil(alumnos / 30);
-        
-        const confirm = await showConfirm('¿Dividir Grupo?', `El grupo excede el límite. Se crearán ${subgrupos} subgrupos automáticamente. ¿Proceder?`);
-        
-        if(confirm) { 
-            try { 
-                await divideGrupo(b.dataset.id, alumnos); 
-                await showAlert('División Exitosa', 'Se han creado los subgrupos. Por favor reasigna sus horarios.', 'success');
-                renderGruposTable(); 
-            } catch(e) { 
-                await showAlert('Error', e.message, 'error'); 
-            }
+        if(await showConfirm('¿Dividir Grupo?', 'Se crearán subgrupos automáticamente.')) { 
+            try { await divideGrupo(b.dataset.id, b.dataset.n); await showAlert('División Exitosa', 'Subgrupos creados.', 'success'); renderGruposTable(); } 
+            catch(e) { await showAlert('Error', e.message, 'error'); }
         }
     }));
 };
@@ -296,7 +317,7 @@ const setupTableListeners = (grupos) => {
 export const loadGruposView = () => {
     document.getElementById('app-content').innerHTML = `
         <h2 class="section-title">Gestión de Grupos</h2>
-        <p class="description-text">Crea grupos, asigna Aula y Horario, y selecciona un Docente disponible.</p>
+        <p class="description-text">Asigna Materia, Aula, Docente y Horario exacto.</p>
 
         <div class="crud-layout" style="display:block;">
             <div class="card p-30 mb-4">
@@ -306,6 +327,7 @@ export const loadGruposView = () => {
                         <div class="form-group" style="flex:2;">
                             <label>Materia:</label>
                             <select id="grupo-materia" required><option>Cargando...</option></select>
+                            <span id="horas-required-display" class="badge bg-info text-white" style="display:none; font-size:0.8em; margin-top:5px; padding:5px 10px; border-radius:15px;"></span>
                         </div>
                         <div class="form-group" style="flex:1;">
                             <label>Nombre Grupo:</label>
@@ -325,6 +347,7 @@ export const loadGruposView = () => {
                     </div>
 
                     ${renderScheduleSelector()}
+                    <div style="text-align:right; margin-top:5px; font-size:0.9em; font-weight:bold; color:var(--primary-dark);" id="horas-count-display">0 horas seleccionadas</div>
 
                     <div style="margin-top: 20px; padding: 15px; background: #f1f8e9; border: 1px solid #c5e1a5; border-radius: 8px;">
                         <label style="font-weight:bold; color:#33691e;">Asignación de Docente:</label>
@@ -336,7 +359,6 @@ export const loadGruposView = () => {
                             </div>
                             <button id="btn-search-docentes" class="btn btn-info btn-sm" style="height: 42px;">🔍 Buscar Disponibles</button>
                         </div>
-                        <small class="text-muted">El sistema filtrará docentes capacitados que no tengan choque de horario.</small>
                     </div>
 
                     <div class="mt-4">
@@ -350,9 +372,7 @@ export const loadGruposView = () => {
                 <h3 class="table-title">Grupos Activos</h3>
                 <div class="table-responsive">
                     <table class="data-table">
-                        <thead>
-                            <tr><th>Materia</th><th>Grupo</th><th>Docente</th><th>Alumnos</th><th>Aula</th><th>Horas</th><th>Acciones</th></tr>
-                        </thead>
+                        <thead><tr><th>Materia</th><th>Grupo</th><th>Docente</th><th>Alumnos</th><th>Aula</th><th>Horas</th><th>Acciones</th></tr></thead>
                         <tbody id="grupos-table-body"></tbody>
                     </table>
                 </div>
