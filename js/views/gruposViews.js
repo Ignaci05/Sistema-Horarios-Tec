@@ -8,8 +8,7 @@ import { showAlert, showConfirm } from '../modules/uiHandler.js';
 
 let currentGrupoId = null;
 
-// --- FUNCIONES VISUALES (Horario) ---
-
+// --- (renderScheduleSelector y updateScheduleAvailability SE MANTIENEN IGUAL) ---
 const renderScheduleSelector = () => {
     const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
     const horas = [7, 8, 9, 10, 11, 12, 13, 14]; 
@@ -28,8 +27,6 @@ const renderScheduleSelector = () => {
 
 const updateScheduleAvailability = async (aulaId, existingSchedule = []) => {
     const checkboxes = document.querySelectorAll('.schedule-checkbox');
-    
-    // Resetear contador visual
     document.getElementById('horas-count-display').textContent = `0 horas seleccionadas`;
 
     if (!aulaId) {
@@ -37,10 +34,8 @@ const updateScheduleAvailability = async (aulaId, existingSchedule = []) => {
         return;
     }
     
-    // Bloquear mientras carga
     checkboxes.forEach(cb => cb.disabled = true);
     const occupiedSlots = await getOccupiedSlots(aulaId, currentGrupoId);
-    
     let selectedCount = 0;
 
     checkboxes.forEach(cb => {
@@ -60,8 +55,7 @@ const updateScheduleAvailability = async (aulaId, existingSchedule = []) => {
                 cell.style.background = '#c8e6c9';
                 selectedCount++;
             }
-            
-            // Listener para actualizar contador en tiempo real
+            // Listener interno para contador
             cb.onclick = () => {
                 const count = document.querySelectorAll('.schedule-checkbox:checked').length;
                 document.getElementById('horas-count-display').textContent = `${count} horas seleccionadas`;
@@ -69,12 +63,10 @@ const updateScheduleAvailability = async (aulaId, existingSchedule = []) => {
             };
         }
     });
-    
     document.getElementById('horas-count-display').textContent = `${selectedCount} horas seleccionadas`;
 };
 
-// --- BÚSQUEDA DE DOCENTES ---
-
+// --- (searchAvailableDocentes SE MANTIENE IGUAL) ---
 const searchAvailableDocentes = async () => {
     const materiaId = document.getElementById('grupo-materia').value;
     const docenteSelect = document.getElementById('grupo-docente');
@@ -83,14 +75,8 @@ const searchAvailableDocentes = async () => {
     const selectedSlots = [];
     document.querySelectorAll('.schedule-checkbox:checked').forEach(cb => selectedSlots.push(cb.value));
 
-    if (!materiaId) {
-        await showAlert('Falta Materia', 'Selecciona primero una Materia.', 'error');
-        return;
-    }
-    if (selectedSlots.length === 0) {
-        await showAlert('Falta Horario', 'Selecciona primero el Horario.', 'error');
-        return;
-    }
+    if (!materiaId) { await showAlert('Falta Materia', 'Selecciona primero una Materia.', 'error'); return; }
+    if (selectedSlots.length === 0) { await showAlert('Falta Horario', 'Selecciona primero el Horario.', 'error'); return; }
 
     btnSearch.textContent = "Buscando...";
     btnSearch.disabled = true;
@@ -98,15 +84,12 @@ const searchAvailableDocentes = async () => {
 
     try {
         const aptDocentes = await getDocentesByMateria(materiaId);
-
         if (aptDocentes.length === 0) {
-            docenteSelect.innerHTML = '<option value="">Ningún docente capacitado para esta materia.</option>';
+            docenteSelect.innerHTML = '<option value="">Ningún docente capacitado.</option>';
             return;
         }
-
         docenteSelect.innerHTML = '<option value="">Seleccione Docente...</option>';
         let countAvailable = 0;
-
         for (const docente of aptDocentes) {
             const isAvailable = await checkDocenteAvailability(docente.id, selectedSlots, currentGrupoId);
             if (isAvailable) {
@@ -116,7 +99,6 @@ const searchAvailableDocentes = async () => {
                 docenteSelect.innerHTML += `<option value="${docente.id}" disabled style="color:red;">${docente.nombre} (Ocupado)</option>`;
             }
         }
-
         if (countAvailable === 0) {
             const opt = document.createElement('option');
             opt.text = "Todos los docentes aptos están ocupados.";
@@ -133,13 +115,13 @@ const searchAvailableDocentes = async () => {
 // --- CARGA DE DATOS ---
 
 const loadSelects = async () => {
-    // 1. Materias: Agregamos data-horas para validación
+    // 1. Materias: Inyectamos SEMESTRE y HORAS en data-attributes
     const materiaSelect = document.getElementById('grupo-materia');
     const materias = await getMaterias();
     materiaSelect.innerHTML = '<option value="">Selecciona Materia...</option>';
     materias.forEach(m => {
-        // 🆕 GUARDAMOS LAS HORAS REQUERIDAS EN EL ATRIBUTO DATA-HORAS
-        materiaSelect.innerHTML += `<option value="${m.id}" data-nombre="${m.nombre}" data-horas="${m.horasSemanales}">${m.nombre} (${m.horasSemanales}h/sem)</option>`;
+        // 🆕 Añadido data-semestre
+        materiaSelect.innerHTML += `<option value="${m.id}" data-nombre="${m.nombre}" data-horas="${m.horasSemanales}" data-semestre="${m.semestre}">${m.nombre} (${m.semestre}º Sem)</option>`;
     });
 
     // 2. Aulas
@@ -152,10 +134,21 @@ const loadSelects = async () => {
 
     aulaSelect.addEventListener('change', (e) => updateScheduleAvailability(e.target.value, []));
     
-    // Listener para mostrar recordatorio de horas al cambiar materia
+    // 🆕 Listener de Materia: Actualiza el input de Semestre y el Badge de horas
     materiaSelect.addEventListener('change', (e) => {
         const option = e.target.options[e.target.selectedIndex];
         const horas = option.getAttribute('data-horas');
+        const semestre = option.getAttribute('data-semestre');
+        
+        // Actualizar Semestre Automáticamente
+        const semestreInput = document.getElementById('grupo-semestre-display');
+        if (semestre) {
+            semestreInput.value = `${semestre}º Semestre`;
+        } else {
+            semestreInput.value = '';
+        }
+
+        // Actualizar Badge de Horas
         const badge = document.getElementById('horas-required-display');
         if (horas) {
             badge.textContent = `Requeridas: ${horas} horas`;
@@ -184,7 +177,7 @@ const renderGruposTable = async () => {
         tbody.insertAdjacentHTML('beforeend', `
             <tr>
                 <td>${g.materiaNombre || '-'}</td>
-                <td>${g.nombre}</td>
+                <td style="font-weight:bold;">${g.nombre}</td>
                 <td>${g.docenteNombre || '<span style="color:#999; font-style:italic;">Sin Asignar</span>'}</td> 
                 <td style="${style}">${num}</td>
                 <td>${g.aulaNombre || '-'}</td>
@@ -200,7 +193,7 @@ const renderGruposTable = async () => {
     setupTableListeners(grupos);
 };
 
-// --- LOGICA DEL FORMULARIO ---
+// --- LÓGICA DEL FORMULARIO ---
 
 const fillForm = async (g = null) => {
     const form = document.getElementById('grupo-form');
@@ -210,11 +203,19 @@ const fillForm = async (g = null) => {
     document.getElementById('horas-required-display').style.display = 'none';
 
     if (g) {
+        // MODO EDICIÓN
         document.getElementById('grupo-materia').value = g.materiaId || '';
-        // Disparar evento change para actualizar badge de horas
+        // Disparar evento change para cargar el semestre automáticamente
         document.getElementById('grupo-materia').dispatchEvent(new Event('change'));
         
-        document.getElementById('grupo-nombre').value = g.nombre || '';
+        // 🆕 Extraer la letra del grupo (Ej: "7º Semestre A" -> "A")
+        // Asumimos formato estándar. Si no coincide, dejamos en blanco para que el usuario elija.
+        const nombreParts = (g.nombre || '').split(' ');
+        const letra = nombreParts[nombreParts.length - 1]; // Tomar la última parte
+        if (['A','B','C','D'].includes(letra)) {
+            document.getElementById('grupo-letra').value = letra;
+        }
+
         document.getElementById('grupo-num-alumnos').value = g.numAlumnos || '';
         document.getElementById('grupo-aula').value = g.aulaId || '';
         
@@ -230,8 +231,10 @@ const fillForm = async (g = null) => {
         }
         document.querySelector('#grupo-form button[type="submit"]').textContent = 'Actualizar';
     } else {
+        // MODO CREACIÓN
         updateScheduleAvailability(null);
         document.querySelector('#grupo-form button[type="submit"]').textContent = 'Crear Grupo';
+        document.getElementById('grupo-semestre-display').value = ''; // Limpiar semestre
     }
 };
 
@@ -245,11 +248,20 @@ const setupListeners = () => {
         const aulSel = document.getElementById('grupo-aula');
         const docSel = document.getElementById('grupo-docente');
         
-        // Recolectar horarios
+        // 🆕 Construcción Automática del Nombre
+        const semestreTxt = document.getElementById('grupo-semestre-display').value; // Ej: "7º Semestre"
+        const letra = document.getElementById('grupo-letra').value; // Ej: "A"
+        
+        if (!semestreTxt) {
+            await showAlert('Falta Información', 'Selecciona una materia para cargar el semestre.', 'error');
+            return;
+        }
+        const nombreGrupoFinal = `${semestreTxt} ${letra}`; // "7º Semestre A"
+
         const slots = [];
         document.querySelectorAll('.schedule-checkbox:checked').forEach(cb => slots.push(cb.value));
 
-        // --- 🆕 VALIDACIÓN DE HORAS DE LA MATERIA ---
+        // Validación de Horas
         const selectedMatOption = matSel.options[matSel.selectedIndex];
         const horasRequeridas = parseInt(selectedMatOption.getAttribute('data-horas'));
         
@@ -257,7 +269,6 @@ const setupListeners = () => {
             await showAlert('Horario Incorrecto', `La materia "${selectedMatOption.text}" requiere exactamente ${horasRequeridas} horas semanales. Has seleccionado ${slots.length}.`, 'error');
             return;
         }
-        // ---------------------------------------------
 
         if (!docSel.value) { 
             await showAlert('Falta Docente', 'Debes asignar un docente al grupo.', 'error'); 
@@ -268,7 +279,7 @@ const setupListeners = () => {
             id: currentGrupoId,
             materiaId: matSel.value,
             materiaNombre: selectedMatOption.getAttribute('data-nombre'),
-            nombre: document.getElementById('grupo-nombre').value.trim(),
+            nombre: nombreGrupoFinal, // ✅ Nombre automático
             numAlumnos: document.getElementById('grupo-num-alumnos').value,
             aulaId: aulSel.value,
             aulaNombre: aulSel.options[aulSel.selectedIndex].getAttribute('data-nombre'),
@@ -279,7 +290,7 @@ const setupListeners = () => {
 
         try {
             await saveGrupo(grupo);
-            await showAlert('Éxito', 'El grupo se ha guardado correctamente.', 'success');
+            await showAlert('Éxito', `Grupo "${nombreGrupoFinal}" guardado correctamente.`, 'success');
             form.reset();
             fillForm(null);
             renderGruposTable();
@@ -317,7 +328,7 @@ const setupTableListeners = (grupos) => {
 export const loadGruposView = () => {
     document.getElementById('app-content').innerHTML = `
         <h2 class="section-title">Gestión de Grupos</h2>
-        <p class="description-text">Asigna Materia, Aula, Docente y Horario exacto.</p>
+        <p class="description-text">Crea grupos, asigna Aula y Horario, y selecciona un Docente disponible.</p>
 
         <div class="crud-layout" style="display:block;">
             <div class="card p-30 mb-4">
@@ -329,10 +340,21 @@ export const loadGruposView = () => {
                             <select id="grupo-materia" required><option>Cargando...</option></select>
                             <span id="horas-required-display" class="badge bg-info text-white" style="display:none; font-size:0.8em; margin-top:5px; padding:5px 10px; border-radius:15px;"></span>
                         </div>
+                        
                         <div class="form-group" style="flex:1;">
-                            <label>Nombre Grupo:</label>
-                            <input type="text" id="grupo-nombre" placeholder="Ej: A" required>
+                            <label>Semestre (Auto):</label>
+                            <input type="text" id="grupo-semestre-display" readonly style="background:#eee; color:#555; font-weight:bold;" placeholder="-">
                         </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Identificador:</label>
+                            <select id="grupo-letra" required>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                            </select>
+                        </div>
+
                         <div class="form-group" style="flex:1;">
                             <label>Alumnos:</label>
                             <input type="number" id="grupo-num-alumnos" min="1" required>
