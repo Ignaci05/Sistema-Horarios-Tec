@@ -253,6 +253,13 @@ const setupListeners = () => {
     if (btnExport) {
         btnExport.addEventListener('click', () => exportToCSV());
     }
+
+    const btnPDF = document.getElementById('btn-export-pdf');
+    if (btnPDF) {
+        btnPDF.addEventListener('click', () => {
+            exportToPDF();
+        });
+    }
 };
 
 const exportToCSV = () => {
@@ -308,6 +315,69 @@ const exportToCSV = () => {
     document.body.removeChild(link);
 };
 
+/**
+ * Exporta la vista actual a PDF (Estrategia Directa).
+ */
+const exportToPDF = () => {
+    // 1. Validar librería
+    if (typeof html2pdf === 'undefined') {
+        alert("Error: Librería html2pdf no cargada.");
+        return;
+    }
+
+    // 2. Seleccionar el contenedor de la tabla
+    const element = document.querySelector('.horario-grid-container');
+    
+    if (!element) {
+        alert("No hay horario para exportar.");
+        return;
+    }
+
+    // 3. Guardar estilos originales (para restaurar después)
+    const originalOverflow = element.style.overflow;
+    const originalMaxHeight = element.style.maxHeight;
+    const originalBorder = element.style.border;
+
+    // 4. Modificar estilos TEMPORALMENTE para la foto
+    // Quitamos el scroll para que la tabla se expanda completa
+    element.style.overflow = "visible"; 
+    element.style.maxHeight = "none";
+    // Añadimos un fondo blanco explícito por si estás en modo oscuro
+    element.style.backgroundColor = "#ffffff"; 
+    element.style.border = "1px solid #ccc";
+
+    // 5. Configuración del PDF
+    const opt = {
+        margin:       0.3,
+        filename:     `Horario_${new Date().toISOString().slice(0,10)}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2,       // Mejora calidad
+            useCORS: true,  // Permite estilos externos
+            scrollY: 0      // ⚠️ CRÍTICO: Evita pantalla blanca al hacer scroll
+        },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+    };
+
+    // 6. Generar PDF y Restaurar
+    html2pdf().set(opt).from(element).save()
+        .then(() => {
+            // Restaurar estilos originales
+            element.style.overflow = originalOverflow;
+            element.style.maxHeight = originalMaxHeight;
+            element.style.backgroundColor = ""; // Quitar fondo forzado
+            element.style.border = originalBorder;
+        })
+        .catch(err => {
+            console.error("Error PDF:", err);
+            // Restaurar en caso de error también
+            element.style.overflow = originalOverflow;
+            element.style.maxHeight = originalMaxHeight;
+            element.style.backgroundColor = "";
+            element.style.border = originalBorder;
+        });
+};
+
 export const loadHorarioGridView = () => {
     const appContent = document.getElementById('app-content');
     const role = localStorage.getItem('userRole');
@@ -340,6 +410,7 @@ export const loadHorarioGridView = () => {
                 <div style="display:flex; align-items:flex-end; gap:10px;">
                     <button id="btn-reset-filters" class="btn btn-secondary btn-sm" style="height:42px;">Limpiar</button>
                     <button id="btn-export-csv" class="btn btn-success btn-sm" style="height:42px; background:#27ae60; color:white; border:none;">📄 CSV</button>
+                    <button id="btn-export-pdf" class="btn btn-danger btn-sm" style="height:42px; background:#E74C3C; color:white; border:none;">🖨️ PDF</button>
                 </div>
             </div>
 
