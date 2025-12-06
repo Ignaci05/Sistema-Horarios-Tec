@@ -5,29 +5,37 @@ import { loadGruposView } from '../views/gruposViews.js';
 import { loadAulasView } from '../views/aulasView.js';
 import { loadHorarioGridView } from '../views/horarioGridView.js';
 import { loadDocenteProfile } from '../views/perfilDocenteView.js';
+import { loadStatsView } from '../views/statsView.js';
 // Mapeo de vistas a sus requerimientos de rol (RF 1)
 const VIEWS_MAP = {
+    'view-inicio': {
+        name: 'Dashboard Principal',
+        roles: ['subdirector', 'jefe'], // Solo administradores
+        icon: '🏠',
+        loadFunction: loadStatsView
+    },
+
     'view-horario': {
         name: 'Horario General',
-        roles: ['subdirector', 'jefe', 'docente'], // Todos deben ver el horario asignado [cite: 24]
+        roles: ['subdirector', 'jefe', 'docente'], // Todos deben ver el horario asignado
         icon: '📊',
         loadFunction: loadHorarioGridView
     },
     'view-materias': {
         name: 'Gestión de Materias',
-        roles: ['subdirector', 'jefe'], // Jefe de Departamento debe crear y editar materias [cite: 17]
+        roles: ['subdirector'], // Jefe de Departamento debe crear y editar materias
         icon: '📚',
         loadFunction: loadMateriasView
     },
     'view-docentes': {
         name: 'Gestión de Docentes',
-        roles: ['subdirector', 'jefe'], // Jefe de Departamento debe poder agregar docentes [cite: 19]
+        roles: ['subdirector'], // Jefe de Departamento debe poder agregar docentes
         icon: '👨‍🏫',
         loadFunction: loadDocentesView
     },
     'view-aulas': {
         name: 'Gestión de Aulas',
-        roles: ['subdirector', 'jefe'], // Jefe de Departamento debe poder ver y editar aulas [cite: 21]
+        roles: ['subdirector', 'jefe'], // Jefe de Departamento debe poder ver y editar aulas
         icon: '🏛️',
         loadFunction: loadAulasView
     },
@@ -39,7 +47,7 @@ const VIEWS_MAP = {
     },
     'view-perfil-docente': {
         name: 'Mi Perfil/Horario',
-        roles: ['docente'], // Docente debe poder seleccionar materias y ver su horario [cite: 23, 24]
+        roles: ['docente'], // Docente debe poder seleccionar materias y ver su horario
         icon: '👤',
         loadFunction: loadDocenteProfile
     }
@@ -47,11 +55,10 @@ const VIEWS_MAP = {
 
 /**
  * Carga una vista específica, muestra el título y actualiza el menú activo.
- * @param {string} viewId - El ID de la vista (ej: 'view-materias').
  */
 export const loadView = (viewId) => {
     const viewData = VIEWS_MAP[viewId];
-    
+
     // 1. Actualizar el título principal
     const viewTitle = document.getElementById('view-title');
     if (viewTitle) {
@@ -60,7 +67,7 @@ export const loadView = (viewId) => {
 
     // 2. Ejecutar la función de carga de contenido (CRUD)
     const appContent = document.getElementById('app-content');
-    
+
     if (viewData?.loadFunction) {
         viewData.loadFunction(); // ⬅️ Ejecutar la función que inyecta HTML y la lógica
     } else {
@@ -75,7 +82,7 @@ export const loadView = (viewId) => {
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('nav-active'));
     const activeItem = document.querySelector(`.nav-item[data-view="${viewId}"]`);
     if (activeItem) {
-         activeItem.classList.add('nav-active');
+        activeItem.classList.add('nav-active');
     }
 };
 
@@ -85,7 +92,7 @@ export const loadView = (viewId) => {
  */
 export const loadInitialView = (userRole) => {
     let initialViewId = 'view-horario'; // Default para Subdirector/Jefe
-    
+
     if (userRole === 'docente') {
         // El docente (D-002) debe ir a su perfil personal.
         initialViewId = 'view-perfil-docente';
@@ -93,7 +100,7 @@ export const loadInitialView = (userRole) => {
         // Subdirector (D-003) y Jefe inician viendo el horario global.
         initialViewId = 'view-horario';
     }
-    
+
     loadView(initialViewId); // Carga la vista seleccionada
 };
 
@@ -111,7 +118,7 @@ export const renderNavMenu = (userRole) => {
     // Construir los enlaces
     Object.keys(VIEWS_MAP).forEach(viewId => {
         const viewData = VIEWS_MAP[viewId];
-        
+
         // Determinar si tiene permiso
         const hasPermission = isSubdirector || viewData.roles.includes(userRole);
 
@@ -121,7 +128,7 @@ export const renderNavMenu = (userRole) => {
             link.className = 'nav-item';
             link.setAttribute('data-view', viewId);
             link.innerHTML = `${viewData.icon} ${viewData.name}`;
-            
+
             // Agregar el listener para cambiar la vista
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -134,7 +141,7 @@ export const renderNavMenu = (userRole) => {
 
     // Agregar el separador y la info del usuario
     navContainer.insertAdjacentHTML('beforeend', `<hr class="nav-separator">`);
-    
+
     const userInfoHTML = `
         <div class="user-info">
             <span class="user-role">Rol: ${userRole.toUpperCase()}</span>

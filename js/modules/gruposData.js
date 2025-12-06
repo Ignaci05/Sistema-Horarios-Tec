@@ -1,9 +1,10 @@
 // js/modules/gruposData.js
 
-import { db } from './firebase-config.js'; 
+import { db } from './firebase-config.js';
 
 const GRUPOS_COLLECTION = 'grupos';
 const DOCENTES_COLLECTION = 'docentes';
+const AULAS_COLLECTION = 'aulas';
 
 /**
  * Obtiene todos los grupos de Firestore.
@@ -56,7 +57,7 @@ export const checkDocenteAvailability = async (docenteId, proposedSchedule, excl
     try {
         const snapshot = await db.collection(GRUPOS_COLLECTION).where('docenteId', '==', docenteId).get();
         let occupiedSlots = [];
-        
+
         snapshot.forEach(doc => {
             if (doc.id === excludeGrupoId) return;
             const data = doc.data();
@@ -70,7 +71,7 @@ export const checkDocenteAvailability = async (docenteId, proposedSchedule, excl
         return !hasConflict; // Retorna TRUE si está disponible
     } catch (error) {
         console.error("Error verificando docente:", error);
-        return false; 
+        return false;
     }
 };
 
@@ -82,10 +83,10 @@ const validateDocenteWorkload = async (docenteId, newHoursCount, excludeGrupoId)
         // 1. Obtener información del docente (Límite)
         const docRef = await db.collection(DOCENTES_COLLECTION).doc(docenteId).get();
         if (!docRef.exists) throw new Error("Docente no encontrado.");
-        
+
         const docenteData = docRef.data();
         const tipoCarga = docenteData.cargaHoraria || ""; // Ej: "8-18" o "20-22"
-        
+
         // Determinar límite máximo basado en el string
         let maxHours = 0;
         if (tipoCarga.includes("18")) maxHours = 18;
@@ -98,7 +99,7 @@ const validateDocenteWorkload = async (docenteId, newHoursCount, excludeGrupoId)
 
         snapshot.forEach(g => {
             if (g.id === excludeGrupoId) return; // Ignorar el grupo actual si es edición
-            
+
             const gData = g.data();
             if (gData.horario && Array.isArray(gData.horario)) {
                 currentHours += gData.horario.length;
@@ -135,6 +136,14 @@ export const saveGrupo = async (grupo) => {
         throw new Error("Debes seleccionar al menos un horario en la cuadrícula.");
     }
 
+    const aulaRef = await db.collection(AULAS_COLLECTION).doc(grupo.aulaId).get();
+    if (aulaRef.exists) {
+        const capacidadAula = parseInt(aulaRef.data().capacidad);
+        if (grupo.numAlumnos > capacidadAula) {
+            throw new Error(`Sobrepoblación: El aula solo soporta ${capacidadAula} alumnos, pero el grupo tiene ${grupo.numAlumnos}.`);
+        }
+    }
+
     // --- VALIDACIÓN DE CARGA HORARIA ---
     await validateDocenteWorkload(grupo.docenteId, grupo.horario.length, grupo.id);
 
@@ -143,7 +152,7 @@ export const saveGrupo = async (grupo) => {
     if (isNaN(numAlumnos)) throw new Error("El número de alumnos debe ser válido.");
 
     if (numAlumnos < 7) throw new Error("El grupo debe tener un mínimo de 7 alumnos.");
-    
+
     let divisionRequired = false;
     if (numAlumnos > 30) {
         divisionRequired = true;
@@ -154,7 +163,7 @@ export const saveGrupo = async (grupo) => {
         nombre: grupo.nombre || 'Sin Nombre',
         numAlumnos: numAlumnos,
         divisionRequired: divisionRequired,
-        
+
         // Relaciones
         materiaId: grupo.materiaId,
         materiaNombre: grupo.materiaNombre || 'Materia',
@@ -163,10 +172,10 @@ export const saveGrupo = async (grupo) => {
         docenteId: grupo.docenteId,
         docenteNombre: grupo.docenteNombre || 'Docente',
 
-        horario: grupo.horario, 
+        horario: grupo.horario,
         updatedAt: new Date().toISOString()
     };
-    
+
     // --- GUARDAR EN FIRESTORE ---
     try {
         if (grupo.id) {
@@ -204,7 +213,7 @@ export const divideGrupo = async (grupoId, originalNumAlumnos) => {
     try {
         const docRef = await db.collection(GRUPOS_COLLECTION).doc(grupoId).get();
         const d = docRef.data(); // Datos originales
-        
+
         const baseName = d.nombre || 'Grupo Dividido';
         const numSubGrupos = Math.ceil(originalNumAlumnos / 30);
         const newSize = Math.floor(originalNumAlumnos / numSubGrupos);
@@ -223,7 +232,7 @@ export const divideGrupo = async (grupoId, originalNumAlumnos) => {
                 createdAt: new Date().toISOString()
             };
             delete data.id; // Asegurar que no se intente guardar con ID viejo
-            
+
             await db.collection(GRUPOS_COLLECTION).add(data);
         }
     } catch (error) {

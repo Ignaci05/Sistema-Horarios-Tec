@@ -134,7 +134,6 @@ const loadSelects = async () => {
 
     aulaSelect.addEventListener('change', (e) => updateScheduleAvailability(e.target.value, []));
     
-    // 🆕 Listener de Materia: Actualiza el input de Semestre y el Badge de horas
     materiaSelect.addEventListener('change', (e) => {
         const option = e.target.options[e.target.selectedIndex];
         const horas = option.getAttribute('data-horas');

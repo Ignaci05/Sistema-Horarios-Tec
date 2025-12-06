@@ -3,20 +3,34 @@
 import { getGrupos } from '../modules/gruposData.js';
 import { getAulas } from '../modules/aulasData.js';
 import { getMaterias } from '../modules/materiasData.js';
-import { getDocenteByMatricula } from '../modules/docentesData.js';
+import { getDocentes, getDocenteByMatricula } from '../modules/docentesData.js'; // ✅ Importamos getDocentes
 
 // Estado local
 let allGrupos = [];
-let allMaterias = []; // 🆕 Necesario para consultar el semestre del grupo
+let allMaterias = []; 
 let filters = {
     aulaId: '',
     materiaId: '',
-    semestre: '' // 🆕 Nuevo filtro
+    semestre: '',
+    docenteId: '' // ✅ Filtro de docente
 };
 
 // Variables de sesión
 let currentUserRole = '';
 let currentUserId = ''; 
+
+/**
+ * Paleta de Colores por Semestre (Vibrantes)
+ */
+const getSemesterColor = (semestre) => {
+    const sem = String(semestre);
+    const colors = {
+        '1': '#FF8A80', '2': '#FFD180', '3': '#FFFF8D',
+        '4': '#CCFF90', '5': '#A7FFEB', '6': '#80D8FF',
+        '7': '#82B1FF', '8': '#B388FF', '9': '#FF80AB'
+    };
+    return colors[sem] || '#EEEEEE';
+};
 
 /**
  * Carga los datos iniciales.
@@ -36,46 +50,60 @@ const loadData = async () => {
         currentUserId = localStorage.getItem('userUID');
     }
 
-    const [grupos, aulas, materias] = await Promise.all([
+    // ✅ Cargamos también los DOCENTES
+    const [grupos, aulas, materias, docentes] = await Promise.all([
         getGrupos(),
         getAulas(),
-        getMaterias()
+        getMaterias(),
+        getDocentes() 
     ]);
     
     allGrupos = grupos;
-    allMaterias = materias; // 🆕 Guardamos materias globalmente
+    allMaterias = materias;
     
-    populateFilters(aulas, materias);
+    populateFilters(aulas, materias, docentes); // ✅ Pasamos docentes
     renderGrid(); 
 };
 
 /**
  * Llena los selectores de filtro.
  */
-const populateFilters = (aulas, materias) => {
+const populateFilters = (aulas, materias, docentes) => {
     const aulaSelect = document.getElementById('filter-aula');
     const materiaSelect = document.getElementById('filter-materia');
-    const semestreSelect = document.getElementById('filter-semestre'); // 🆕
+    const semestreSelect = document.getElementById('filter-semestre');
+    const docenteSelect = document.getElementById('filter-docente'); // ✅ Selector Docente
     
     if (aulaSelect) {
         aulaSelect.innerHTML = '<option value="">Todas las Aulas</option>';
-        aulas.forEach(a => {
-            aulaSelect.innerHTML += `<option value="${a.id}">${a.nombre}</option>`;
-        });
+        aulas.forEach(a => aulaSelect.innerHTML += `<option value="${a.id}">${a.nombre}</option>`);
     }
 
     if (materiaSelect) {
         materiaSelect.innerHTML = '<option value="">Todas las Materias</option>';
-        materias.forEach(m => {
-            materiaSelect.innerHTML += `<option value="${m.id}">${m.nombre}</option>`;
-        });
+        materias.forEach(m => materiaSelect.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
     }
 
-    // 🆕 Llenar Semestres (1-9)
     if (semestreSelect) {
         semestreSelect.innerHTML = '<option value="">Todos los Semestres</option>';
         for(let i=1; i<=9; i++) {
             semestreSelect.innerHTML += `<option value="${i}">${i}º Semestre</option>`;
+        }
+    }
+
+    // ✅ Lógica para llenar Docentes
+    if (docenteSelect) {
+        if (currentUserRole === 'docente') {
+            // Si soy docente, deshabilito este filtro (solo veo mis clases)
+            docenteSelect.innerHTML = '<option value="">Mi Horario</option>';
+            docenteSelect.disabled = true;
+        } else {
+            // Si soy Admin, lleno la lista
+            docenteSelect.innerHTML = '<option value="">Todos los Docentes</option>';
+            docentes.forEach(d => {
+                docenteSelect.innerHTML += `<option value="${d.id}">${d.nombre}</option>`;
+            });
+            docenteSelect.disabled = false;
         }
     }
 };
@@ -86,7 +114,8 @@ const populateFilters = (aulas, materias) => {
 const applyFilters = () => {
     filters.aulaId = document.getElementById('filter-aula').value;
     filters.materiaId = document.getElementById('filter-materia').value;
-    filters.semestre = document.getElementById('filter-semestre').value; // 🆕
+    filters.semestre = document.getElementById('filter-semestre').value;
+    filters.docenteId = document.getElementById('filter-docente').value; // ✅ Leer filtro
     renderGrid();
 };
 
@@ -96,15 +125,12 @@ const applyFilters = () => {
 const renderGrid = () => {
     const gridContainer = document.getElementById('horario-grid-body');
     if (!gridContainer) return;
-
     gridContainer.innerHTML = '';
 
     const horas = [7, 8, 9, 10, 11, 12, 13, 14];
     const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
-    // --- LÓGICA DE FILTRADO ---
-    
-    // 1. Filtro base por Rol
+    // 1. Filtro base por Rol (Seguridad)
     let baseGrupos = allGrupos;
     if (currentUserRole === 'docente') {
         baseGrupos = allGrupos.filter(g => g.docenteId === currentUserId);
@@ -114,28 +140,20 @@ const renderGrid = () => {
     const filteredGrupos = baseGrupos.filter(g => {
         const matchAula = filters.aulaId === '' || g.aulaId === filters.aulaId;
         const matchMateria = filters.materiaId === '' || g.materiaId === filters.materiaId;
+        const matchDocente = filters.docenteId === '' || g.docenteId === filters.docenteId; // ✅ Filtro lógico
         
-        // 🆕 Lógica de Filtro por Semestre
         let matchSemestre = true;
         if (filters.semestre !== '') {
-            // Buscamos la materia asociada al grupo para saber su semestre
             const materiaDelGrupo = allMaterias.find(m => m.id === g.materiaId);
-            if (materiaDelGrupo) {
-                // Comparamos strings para evitar problemas de tipos
-                matchSemestre = materiaDelGrupo.semestre.toString() === filters.semestre;
-            } else {
-                matchSemestre = false;
-            }
+            matchSemestre = materiaDelGrupo ? (materiaDelGrupo.semestre.toString() === filters.semestre) : false;
         }
 
-        return matchAula && matchMateria && matchSemestre;
+        return matchAula && matchMateria && matchSemestre && matchDocente;
     });
 
     // --- CONSTRUCCIÓN DE LA TABLA ---
-
     horas.forEach(hora => {
         const row = document.createElement('tr');
-        
         const timeCell = document.createElement('td');
         timeCell.className = 'time-slot';
         timeCell.textContent = `${hora}:00 - ${hora+1}:00`;
@@ -154,13 +172,23 @@ const renderGrid = () => {
             const slotKey = `${dia}-${hora}`;
             const activeGroups = filteredGrupos.filter(g => g.horario && g.horario.includes(slotKey));
 
-            if (activeGroups.length > 0) {
+if (activeGroups.length > 0) {
                 activeGroups.forEach(grupo => {
                     const card = document.createElement('div');
                     
-                    const isMyClass = (grupo.docenteId === currentUserId);
-                    const bgColor = isMyClass ? '#E8F5E9' : '#E3F2FD'; 
-                    const borderColor = isMyClass ? '#4CAF50' : '#2196F3';
+                    // 1. OBTENER COLOR DEL SEMESTRE
+                    const materiaObj = allMaterias.find(m => m.id === grupo.materiaId);
+                    const semestre = materiaObj ? materiaObj.semestre : '0';
+                    let bgColor = getSemesterColor(semestre);
+                    
+                    let borderColor = 'rgba(0,0,0,0.1)'; 
+                    let borderWidth = '0 0 0 4px'; // Borde izquierdo de 4px
+
+                    if (currentUserRole === 'docente') {
+                        borderColor = '#2E7D32'; 
+                    } else {
+                         borderColor = 'rgba(0,0,0,0.15)';
+                    }
 
                     card.style.cssText = `
                         background-color: ${bgColor}; 
@@ -171,23 +199,33 @@ const renderGrid = () => {
                         font-size: 0.8em;
                         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
                         text-align: left;
+                        cursor: default;
+                        transition: transform 0.1s;
                     `;
                     
+                    const materiaNombre = grupo.materiaNombre || 'Materia';
+                    const semestreTxt = materiaObj?.semestre || '?';
+                    card.title = `${materiaNombre} (${semestreTxt}º Semestre)`;
+
                     let detailText = `<span>${grupo.aulaNombre}</span> <span style="font-weight:bold;">${grupo.nombre}</span>`;
                     
                     if (currentUserRole !== 'docente') {
                         const nombreProfe = grupo.docenteNombre ? grupo.docenteNombre.split(' ')[0] : 'Sin Asignar';
-                        detailText += `<div style="font-size:0.8em; color:#666; margin-top:2px;">${nombreProfe}</div>`;
+                        detailText += `<div style="font-size:0.8em; color:#444; margin-top:2px;">${nombreProfe}</div>`;
                     }
 
                     card.innerHTML = `
                         <div style="font-weight:bold; color:var(--primary-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                            ${grupo.materiaNombre}
+                            ${materiaNombre}
                         </div>
                         <div style="display:flex; flex-direction:column; color:#555; font-size:0.9em;">
                             ${detailText}
                         </div>
                     `;
+
+                    card.onmouseenter = () => { card.style.transform = 'scale(1.02)'; card.style.boxShadow = '0 4px 6px rgba(0,0,0,0.15)'; };
+                    card.onmouseleave = () => { card.style.transform = 'scale(1)'; card.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; };
+
                     cell.appendChild(card);
                 });
             }
@@ -197,56 +235,48 @@ const renderGrid = () => {
     });
 };
 
-/**
- * Listeners para botones y selects.
- */
 const setupListeners = () => {
     document.getElementById('filter-aula').addEventListener('change', applyFilters);
     document.getElementById('filter-materia').addEventListener('change', applyFilters);
-    document.getElementById('filter-semestre').addEventListener('change', applyFilters); // 🆕
+    document.getElementById('filter-semestre').addEventListener('change', applyFilters);
+    document.getElementById('filter-docente').addEventListener('change', applyFilters); // ✅ Listener Docente
     
     document.getElementById('btn-reset-filters').addEventListener('click', () => {
         document.getElementById('filter-aula').value = '';
         document.getElementById('filter-materia').value = '';
-        document.getElementById('filter-semestre').value = ''; // 🆕
+        document.getElementById('filter-semestre').value = '';
+        document.getElementById('filter-docente').value = '';
         applyFilters();
     });
 
     const btnExport = document.getElementById('btn-export-csv');
     if (btnExport) {
-        btnExport.addEventListener('click', () => {
-            exportToCSV();
-        });
+        btnExport.addEventListener('click', () => exportToCSV());
     }
 };
 
-/**
- * Genera reporte CSV.
- */
 const exportToCSV = () => {
-    // Definir qué datos exportar (respetando el filtro actual o todos los del usuario)
     let dataToExport = [];
     let filename = "";
-
-    // Obtenemos los grupos ya filtrados por rol
     let baseGrupos = allGrupos;
     if (currentUserRole === 'docente') {
         baseGrupos = allGrupos.filter(g => g.docenteId === currentUserId);
-        filename = `Horario_Personal_${new Date().toISOString().slice(0,10)}.csv`;
+        filename = `Horario_Personal.csv`;
     } else {
-        filename = `Horario_General_${new Date().toISOString().slice(0,10)}.csv`;
+        filename = `Horario_General.csv`;
     }
 
-    // 🆕 Aplicamos también los filtros de UI al CSV para que descargue lo que se ve
+    // Exportar lo que se ve (filtrado)
     dataToExport = baseGrupos.filter(g => {
         const matchAula = filters.aulaId === '' || g.aulaId === filters.aulaId;
         const matchMateria = filters.materiaId === '' || g.materiaId === filters.materiaId;
+        const matchDocente = filters.docenteId === '' || g.docenteId === filters.docenteId;
         let matchSemestre = true;
         if (filters.semestre !== '') {
             const materiaDelGrupo = allMaterias.find(m => m.id === g.materiaId);
             matchSemestre = materiaDelGrupo ? (materiaDelGrupo.semestre.toString() === filters.semestre) : false;
         }
-        return matchAula && matchMateria && matchSemestre;
+        return matchAula && matchMateria && matchSemestre && matchDocente;
     });
 
     if (dataToExport.length === 0) {
@@ -258,15 +288,12 @@ const exportToCSV = () => {
     csvContent += "ID,Materia,Semestre,Grupo,Docente,Alumnos,Aula,Horario\n";
 
     dataToExport.forEach(g => {
-        // Buscar semestre para el reporte
         const matObj = allMaterias.find(m => m.id === g.materiaId);
         const sem = matObj ? matObj.semestre : "?";
-
         const mat = (g.materiaNombre || "").replace(/,/g, " ");
         const doc = (g.docenteNombre || "").replace(/,/g, " ");
         const aula = (g.aulaNombre || "").replace(/,/g, " ");
         const hor = (g.horario || []).join(" | ");
-        
         csvContent += `${g.id},${mat},${sem},${g.nombre},${doc},${g.numAlumnos},${aula},"${hor}"\n`;
     });
 
@@ -284,16 +311,12 @@ const exportToCSV = () => {
 export const loadHorarioGridView = () => {
     const appContent = document.getElementById('app-content');
     const role = localStorage.getItem('userRole');
-    
     const titulo = role === 'docente' ? 'Mi Horario de Clases' : 'Horario General Institucional';
-    const desc = role === 'docente' 
-        ? 'Consulta tus asignaciones académicas.' 
-        : 'Vista global. Filtra por Semestre, Aula o Materia.';
+    const desc = role === 'docente' ? 'Consulta tus asignaciones académicas.' : 'Vista global. Utiliza los filtros para encontrar clases.';
 
     appContent.innerHTML = `
         <h2 class="section-title">${titulo}</h2>
         <p class="description-text">${desc}</p>
-
         <div class="card p-30">
             <div class="filter-controls" style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid #eee;">
                 
@@ -301,31 +324,46 @@ export const loadHorarioGridView = () => {
                     <label style="font-weight:bold; font-size:0.9em;">Filtrar por Semestre:</label>
                     <select id="filter-semestre" class="control-select"><option>Cargando...</option></select>
                 </div>
-
                 <div style="flex:1; min-width: 200px;">
                     <label style="font-weight:bold; font-size:0.9em;">Filtrar por Aula:</label>
                     <select id="filter-aula" class="control-select"><option>Cargando...</option></select>
                 </div>
                 <div style="flex:1; min-width: 200px;">
+                    <label style="font-weight:bold; font-size:0.9em;">Filtrar por Docente:</label>
+                    <select id="filter-docente" class="control-select"><option value="">Cargando...</option></select>
+                </div>
+                <div style="flex:1; min-width: 200px;">
                     <label style="font-weight:bold; font-size:0.9em;">Filtrar por Materia:</label>
                     <select id="filter-materia" class="control-select"><option>Cargando...</option></select>
                 </div>
+                
                 <div style="display:flex; align-items:flex-end; gap:10px;">
                     <button id="btn-reset-filters" class="btn btn-secondary btn-sm" style="height:42px;">Limpiar</button>
                     <button id="btn-export-csv" class="btn btn-success btn-sm" style="height:42px; background:#27ae60; color:white; border:none;">📄 CSV</button>
                 </div>
             </div>
 
+            <div style="margin-top:25px; padding:15px; background:#fafafa; border-radius:8px; border:1px solid #eee;">
+                <h5 style="margin-top:0; font-size:0.9em; color:#666; text-align:center;">Guía de Semestres</h5>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; font-size:0.85em;">
+                    <span style="padding:4px 10px; background:#FF8A80; color:#333; border-radius:15px; font-weight:bold;">1º Sem</span>
+                    <span style="padding:4px 10px; background:#FFD180; color:#333; border-radius:15px; font-weight:bold;">2º Sem</span>
+                    <span style="padding:4px 10px; background:#FFFF8D; color:#333; border-radius:15px; font-weight:bold;">3º Sem</span>
+                    <span style="padding:4px 10px; background:#CCFF90; color:#333; border-radius:15px; font-weight:bold;">4º Sem</span>
+                    <span style="padding:4px 10px; background:#A7FFEB; color:#333; border-radius:15px; font-weight:bold;">5º Sem</span>
+                    <span style="padding:4px 10px; background:#80D8FF; color:#333; border-radius:15px; font-weight:bold;">6º Sem</span>
+                    <span style="padding:4px 10px; background:#82B1FF; color:#333; border-radius:15px; font-weight:bold;">7º Sem</span>
+                    <span style="padding:4px 10px; background:#B388FF; color:white; border-radius:15px; font-weight:bold;">8º Sem</span>
+                    <span style="padding:4px 10px; background:#FF80AB; color:white; border-radius:15px; font-weight:bold;">9º Sem</span>
+                </div>
+            </div>
+            
             <div class="horario-grid-container" style="overflow-x: auto;">
                 <table class="horario-table" style="width:100%; border-collapse:collapse; min-width:900px;">
                     <thead style="background:var(--primary-dark); color:white;">
                         <tr>
-                            <th class="time-header" style="padding:10px; width:100px; position:sticky; left:0; z-index:10;">Hora</th>
-                            <th>Lunes</th>
-                            <th>Martes</th>
-                            <th>Miércoles</th>
-                            <th>Jueves</th>
-                            <th>Viernes</th>
+                            <th class="time-header" style="padding:10px; width:100px;">Hora</th>
+                            <th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th>
                         </tr>
                     </thead>
                     <tbody id="horario-grid-body">
@@ -333,6 +371,7 @@ export const loadHorarioGridView = () => {
                     </tbody>
                 </table>
             </div>
+
         </div>
     `;
 
